@@ -1,0 +1,20 @@
+Repton levels appear to be maps of 32 row by 32 columns.
+
+The level data was found by loading the REPTON2 file into memory in MODE 5
+and visually inspecting the data. The assumption was that level data follows
+the sprite data.
+
+Level data seems to start at 0x2c00.
+
+Setting the lowest 4 bits of the first byte in the first level to 0 results
+in a blank cell; setting it to 1 results in a diamond.
+
+Setting the highest 4 bits of the first byte to 0 produces something other
+than a blank space.
+
+Setting multiple bytes to 0 results in a group of blank cells followed by
+a teleporter-style cell - the type of cell used for teleporters in Repton 2.
+
+Each row of the level appears to be 20 bytes long. This may mean that each
+cell is stored in 5 bits.
+
