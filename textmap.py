@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import sys
-import UEFfile
+import repton
 
 chars = {
     0: " ", 1: "+",         # space, diamond
@@ -43,23 +43,17 @@ if __name__ == "__main__":
         sys.stderr.write("The level number must be an integer from 1 to 12.\n")
         sys.exit(1)
     
-    u = UEFfile.UEFfile(uef_file)
-    
-    for details in u.contents:
-    
-        if details["name"] == "REPTON2":
-            break
-    else:
+    try:
+        r = repton.Repton(uef_file)
+    except NotFound:
         sys.stderr.write("Failed to find REPTON2 file in the specified file: %s\n" % uef_file)
         sys.exit(1)
-    
-    data = details["data"]
-    
-    if len(data) != 0x4a00:
+    except IncorrectSize:
         sys.stderr.write("The REPTON2 file was not the expected size.\n")
         sys.exit(1)
     
-    address = 0x2c00 + ((level - 1) * 640)
+    data = r.read_level_data()
+    address = ((level - 1) * 640)
     
     for row in range(32):
     

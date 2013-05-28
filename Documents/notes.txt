@@ -18,3 +18,83 @@ a teleporter-style cell - the type of cell used for teleporters in Repton 2.
 Each row of the level appears to be 20 bytes long. This may mean that each
 cell is stored in 5 bits.
 
+
+After some experimentation and reading of levels, this is the mapping between
+values and cell types:
+
+     0: space
+     1: diamond
+     2: boulder
+     3: egg
+     4: key
+     5: earth
+     6: earth
+     7: earth
+     8: safe
+     9: brick wall
+    10: double (top/bottom) wall
+    11: double (left/right) wall
+    12: quadruple wall
+    13: fancy wall
+    14: smooth wall
+    15: lower edged smooth wall
+    16: upper edged smooth wall
+    17: right edged smooth wall
+    18: left edged smooth wall
+    19: lower right curved smooth wall
+    20: lower left curved smooth wall
+    21: upper right curved smooth wall
+    22: upper left curved smooth wall
+    23: map
+    24: lower edged brick wall
+    25: upper edged brick wall
+    26: right edged brick wall
+    27: left edged brick wall
+    28: lower right curved brick wall
+    29: lower left curved brick wall
+    30: upper right curved brick wall
+    31: upper left curved brick wall
+
+
+
+Sprites are stored at 0x2500 in the REPTON2 file with data at the following
+offsets and lengths:
+
+    Offset  Type    Length (bytes)
+    0       12      16
+    16      31      8
+    24      25      8
+    32      30      8
+    40      29      8
+    48      24      8
+    56      28      8
+    64      27      8
+    72      26      8
+    80      9       8
+    88      22      8
+    96      16      8
+    104     21      8
+    112     20      8
+    120     15      8
+    128     19      8
+    136     18      8
+    144     17      8
+    152     14      8
+    160     11      16
+    176     10      16
+    192     13      16
+    208     8       16  (top)
+    224     8       16  (bottom)
+    240     5       16  |_ overlapping
+    248     6       16  |  pieces
+    264     7       8
+    272     1       16  (top)
+    288     1       16  (bottom)
+    304     2       16  (top)
+    320     2       16  (bottom)
+    336     3       16  (top)
+    352     3       16  (bottom)
+    368     4       16  (top)
+    384     4       16  (bottom)
+    400     23      16  (top)
+    416     23      16  (bottom)
