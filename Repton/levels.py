@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import sys
-from Repton import IncorrectSize, NotFound, Repton
 
 chars = {
     0: " ", 1: "+",         # space, diamond
@@ -44,7 +43,7 @@ if __name__ == "__main__":
         sys.exit(1)
     
     try:
-        r = Repton(uef_file)
+        r = repton.Repton(uef_file)
     except NotFound:
         sys.stderr.write("Failed to find REPTON2 file in the specified file: %s\n" % uef_file)
         sys.exit(1)

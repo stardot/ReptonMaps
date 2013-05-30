@@ -3,7 +3,7 @@
 import os, sys
 
 import Image
-from Repton import IncorrectSize, NotFound, Repton
+import repton
 
 sprite_table = [
     (0x6a0, 0x6a0, 0x6a0, 0x6a0),   # blank
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     output_dir = sys.argv[2]
     
     try:
-        r = Repton(uef_file)
+        r = repton.Repton(uef_file)
     except NotFound:
         sys.stderr.write("Failed to find REPTON2 file in the specified file: %s\n" % uef_file)
         sys.exit(1)

@@ -1,3 +1,5 @@
+__all__ = ["levels", "sprites"]
+
 import UEFfile
 
 class NotFound(Exception):
