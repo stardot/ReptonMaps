@@ -1,4 +1,4 @@
-__all__ = ["levels", "sprites"]
+__all__ = ["sprites"]
 
 import UEFfile
 
