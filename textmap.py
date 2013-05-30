@@ -52,33 +52,22 @@ if __name__ == "__main__":
         sys.stderr.write("The REPTON2 file was not the expected size.\n")
         sys.exit(1)
     
-    data = r.read_level_data()
-    address = ((level - 1) * 640)
+    level = r.read_level(level)
     
     for row in range(32):
     
-        current = 0
-        offset = 0
-        
         for column in range(32):
 
-            if offset < 5:
-                current = current | (ord(data[address]) << offset)
-                address += 1
-                offset += 8
+            value = level[row][column]
             
-            if offset >= 5:
-                value = current & 0x1f
-                current = current >> 5
-                offset -= 5
-                try:
-                    char = chars[value]
-                    sys.stdout.write(char)
-                except KeyError:
-                    if value < 10:
-                        sys.stdout.write(chr(ord("0") + value))
-                    else:
-                        sys.stdout.write(chr(ord("a") + value - 10))
+            try:
+                char = chars[value]
+                sys.stdout.write(char)
+            except KeyError:
+                if value < 10:
+                    sys.stdout.write(chr(ord("0") + value))
+                else:
+                    sys.stdout.write(chr(ord("a") + value - 10))
         
         print
     

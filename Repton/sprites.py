@@ -2,9 +2,6 @@
 
 import os, sys
 
-import Image
-import repton
-
 sprite_table = [
     (0x6a0, 0x6a0, 0x6a0, 0x6a0),   # blank
     (0x110, 0x118, 0x120, 0x128),   # diamond
@@ -69,50 +66,3 @@ class Reader:
         
         columns.reverse()
         return "".join(map(chr, columns))
-
-
-if __name__ == "__main__":
-
-    if len(sys.argv) != 3:
-    
-        sys.stderr.write("Usage: %s <Repton UEF file> <output directory>\n" % sys.argv[0])
-        sys.exit(1)
-    
-    uef_file = sys.argv[1]
-    output_dir = sys.argv[2]
-    
-    try:
-        r = repton.Repton(uef_file)
-    except NotFound:
-        sys.stderr.write("Failed to find REPTON2 file in the specified file: %s\n" % uef_file)
-        sys.exit(1)
-    except IncorrectSize:
-        sys.stderr.write("The REPTON2 file was not the expected size.\n")
-        sys.exit(1)
-    
-    if not os.path.exists(output_dir):
-        os.mkdir(output_dir)
-    
-    data = r.read_sprite_data()
-    
-    n = 0
-    reader = Reader(data)
-    
-    for offsets in sprite_table:
-    
-        top_left, top_right, bottom_left, bottom_right = \
-            map(reader.read_sprite, offsets)
-        
-        sprite = []
-        for left, right in zip(top_left + bottom_left, top_right + bottom_right):
-            sprite.append(left + right)
-        
-        sprite = "".join(sprite)
-        
-        im = Image.fromstring("P", (8, 16), sprite)
-        im.putpalette((0,255,0, 255,255,0, 255,0,0, 0,0,0))
-        im.save(os.path.join(output_dir, "%02i.png" % n))
-        
-        n += 1
-    
-    sys.exit()
