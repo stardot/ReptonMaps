@@ -10,6 +10,8 @@ command line from within the ReptonMaps directory itself, like this:
 
 You will also need to provide a suitable Repton.uef file containing the files
 for the Acorn Electron version of Repton. This is not provided in this package.
+It is recommended that you save modified levels to a new UEF file and keep the
+original as a backup.
 
 
 Copyright and License Information
