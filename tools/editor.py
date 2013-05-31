@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 """
-Copyright (C) 2012 David Boddie <david@boddie.org.uk>
+editor.py - A Repton level editor.
+
+Copyright (C) 2013 David Boddie <david@boddie.org.uk>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
