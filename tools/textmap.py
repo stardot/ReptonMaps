@@ -52,7 +52,7 @@ if __name__ == "__main__":
         sys.stderr.write("The REPTON2 file was not the expected size.\n")
         sys.exit(1)
     
-    level = r.read_level(level)
+    level = r.read_levels()[level - 1]
     
     for row in range(32):
     

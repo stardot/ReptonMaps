@@ -23,19 +23,19 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
 from Repton import Repton
+import UEFfile
+
+__version__ = "0.1"
 
 class LevelWidget(QWidget):
 
-    def __init__(self, tile_images, parent = None):
+    def __init__(self, parent = None):
     
         QWidget.__init__(self, parent)
         
         self.xs = 4
         self.ys = 2
         
-        self.clearLevel()
-        
-        self.tile_images = tile_images
         self.currentTile = 0
         
         self.setAutoFillBackground(True)
@@ -43,14 +43,17 @@ class LevelWidget(QWidget):
         p.setColor(QPalette.Window, Qt.black)
         self.setPalette(p)
     
+    def setTileImages(self, tile_images):
+    
+        self.tile_images = tile_images
+    
     def clearLevel(self):
     
-        self.level = []
-        
         for row in range(32):
-            self.level.append([])
             for column in range(32):
-                self.level[-1].append(0)
+                self.level[row][column] = self.currentTile
+        
+        self.update()
                 
     def setLevel(self, level):
     
@@ -101,6 +104,13 @@ class LevelWidget(QWidget):
                 
                 painter.drawImage(c * 8 * self.xs, r * 16 * self.ys,
                                   tile_image)
+        
+        if r1 <= 4 <= r2 and c1 <= 4 <= c2:
+            x1, y1 = 4 * 8 * self.xs, 4 * 16 * self.ys
+            x2, y2 = 5 * 8 * self.xs - 1, 5 * 16 * self.ys - 1
+            painter.drawLine(x1, y1, x2, y2)
+            painter.drawLine(x1, y2, x2, y1)
+        
         painter.end()
     
     def sizeHint(self):
@@ -146,9 +156,17 @@ class EditorWindow(QMainWindow):
         self.ys = 2
         self.repton = repton
         self.path = ""
-        self.loadImages()
         
-        self.levelWidget = LevelWidget(self.tile_images)
+        self.level = 1
+        self.colours = [(255,0,0), (0,0,255), (255,0,255), (255,0,0),
+                        (255,0,0), (0,0,255), (0,255,255), (255,0,0),
+                        (0,0,255), (255,0,0), (255,0,255), (0,255,255)]
+        
+        self.loadImages()
+        self.loadLevels()
+        
+        self.levelWidget = LevelWidget()
+        self.levelWidget.setTileImages(self.tile_images)
         
         self.createMenus()
         self.createToolBars()
@@ -159,15 +177,54 @@ class EditorWindow(QMainWindow):
     
     def loadImages(self):
     
-        # Find the images.
         self.tile_images = []
-        palette = map(lambda x: qRgb(*x), [(0,255,0), (255,255,0), (255,0,0), (0,0,0)])
+        colour = self.colours[self.level - 1]
+        
+        palette = map(lambda x: qRgb(*x), [(0,255,0), (255,255,0), colour, (0,0,0)])
         
         for sprite in self.repton.read_sprites():
         
             image = QImage(sprite, 8, 16, QImage.Format_Indexed8).scaled(self.xs * 8, self.ys * 16)
             image.setColorTable(palette)
             self.tile_images.append(image)
+    
+    def loadLevels(self):
+    
+        self.levels = self.repton.read_levels()
+    
+    def saveAs(self):
+    
+        path = QFileDialog.getSaveFileName(self, self.tr("Save As"),
+                                           self.path, self.tr("UEF files (*.uef)"))
+        if not path.isEmpty():
+        
+            if self.saveLevels(unicode(path)):
+                self.path = path
+                self.setWindowTitle(self.tr(path))
+            else:
+                QMessageBox.warning(self, self.tr("Save Levels"),
+                    self.tr("Couldn't write the new executable to %1.\n").arg(path))
+    
+    def saveLevels(self, path):
+    
+        # Write the levels back to the UEF file.
+        self.repton.write_levels(self.levels)
+        
+        # Write the new UEF file.
+        u = UEFfile.UEFfile(creator = 'Repton Editor ' + __version__)
+        u.minor = 6
+        u.target_machine = "Electron"
+        
+        files = map(lambda x: (x["name"], x["load"], x["exec"], x["data"]),
+                    self.repton.uef.contents)
+        
+        u.import_files(0, files, gap = True)
+        
+        try:
+            u.write(path, write_emulator_info = False)
+            return True
+        except UEFfile.UEFfile_error:
+            return False
     
     def createMenus(self):
     
@@ -176,15 +233,23 @@ class EditorWindow(QMainWindow):
         newAction = fileMenu.addAction(self.tr("&New"))
         newAction.setShortcut(QKeySequence.New)
         
+        saveAsAction = fileMenu.addAction(self.tr("Save &As..."))
+        saveAsAction.setShortcut(QKeySequence.SaveAs)
+        saveAsAction.triggered.connect(self.saveAs)
+        
         quitAction = fileMenu.addAction(self.tr("E&xit"))
         quitAction.setShortcut(self.tr("Ctrl+Q"))
         quitAction.triggered.connect(self.close)
+        
+        editMenu = self.menuBar().addMenu(self.tr("&Edit"))
+        clearAction = editMenu.addAction(self.tr("&Clear"))
+        clearAction.triggered.connect(self.clearLevel)
         
         levelsMenu = self.menuBar().addMenu(self.tr("&Levels"))
         levelsGroup = QActionGroup(self)
         
         for i in range(1, 13):
-            levelAction = levelsMenu.addAction(self.tr("%1").arg(i))
+            levelAction = levelsMenu.addAction(chr(64 + i))
             levelAction.setData(QVariant(i))
             levelAction.setCheckable(True)
             levelsGroup.addAction(levelAction)
@@ -215,8 +280,20 @@ class EditorWindow(QMainWindow):
     def selectLevel(self, action):
     
         number = action.data().toInt()[0]
-        data = self.repton.read_level(number)
+        data = self.levels[number - 1]
+        
+        self.level = number
+        self.loadImages()
+        self.levelWidget.setTileImages(self.tile_images)
         self.levelWidget.setLevel(data)
+    
+    def clearLevel(self):
+    
+        answer = QMessageBox.question(self, self.tr("Clear Level"),
+            self.tr("Clear the current level?"), QMessageBox.Yes | QMessageBox.No)
+        
+        if answer == QMessageBox.Yes:
+            self.levelWidget.clearLevel()
     
     def sizeHint(self):
     
