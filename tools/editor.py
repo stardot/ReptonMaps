@@ -173,6 +173,11 @@ class EditorWindow(QMainWindow):
         self.createMenus()
         self.createToolBars()
         
+        # Select the first tile in the tiles toolbar and the first level in the
+        # levels menu.
+        self.tileGroup.actions()[0].trigger()
+        self.levelsGroup.actions()[0].trigger()
+        
         area = QScrollArea()
         area.setWidget(self.levelWidget)
         self.setCentralWidget(area)
@@ -248,16 +253,15 @@ class EditorWindow(QMainWindow):
         clearAction.triggered.connect(self.clearLevel)
         
         levelsMenu = self.menuBar().addMenu(self.tr("&Levels"))
-        levelsGroup = QActionGroup(self)
+        self.levelsGroup = QActionGroup(self)
         
         for i in range(1, 13):
             levelAction = levelsMenu.addAction(chr(64 + i))
             levelAction.setData(QVariant(i))
             levelAction.setCheckable(True)
-            levelsGroup.addAction(levelAction)
+            self.levelsGroup.addAction(levelAction)
         
         levelsMenu.triggered.connect(self.selectLevel)
-        levelsGroup.actions()[0].trigger()
     
     def createToolBars(self):
     
@@ -268,16 +272,14 @@ class EditorWindow(QMainWindow):
         
             icon = QIcon(QPixmap.fromImage(self.tile_images[symbol]))
             action = self.tilesToolBar.addAction(icon, str(symbol))
+            action.setData(QVariant(symbol))
             action.setCheckable(True)
             self.tileGroup.addAction(action)
             action.triggered.connect(self.setCurrentTile)
-        
-        # Select the first tile in the tiles toolbar.
-        self.tileGroup.actions()[0].trigger()
     
     def setCurrentTile(self):
     
-        self.levelWidget.currentTile = int(self.sender().text())
+        self.levelWidget.currentTile = self.sender().data().toInt()[0]
     
     def selectLevel(self, action):
     
@@ -288,6 +290,13 @@ class EditorWindow(QMainWindow):
         self.loadImages()
         self.levelWidget.setTileImages(self.tile_images)
         self.levelWidget.setLevel(data)
+        
+        # Also change the sprites in the toolbar.
+        for action in self.tileGroup.actions():
+        
+            symbol = action.data().toInt()[0]
+            icon = QIcon(QPixmap.fromImage(self.tile_images[symbol]))
+            action.setIcon(icon)
     
     def clearLevel(self):
     
