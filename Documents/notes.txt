@@ -81,6 +81,9 @@ Other sprites are 12 by 24 pixels.
 Text characters start at 0x2040.
 Code appears to end at 0x1aff.
 
+Level data
+==========
+
 Writing zero bytes into the file from 0x2001 to 0x203f results in a corrupted
 Screen A and a topmost transporter that sends Repton to the leftmost skull
 chamber with the palette for the level that should have been entered. This
@@ -108,3 +111,62 @@ Stairway to Hell site, values of 0x80 and above appear to be placeholders for
 eight rows that contain a single type of tile. So, 0x80 is eight rows of empty
 space, 0x86 must be diamonds (as used in Screen P), and 0x83 has been tested to
 be earth.
+
+Transporters and puzzle pieces
+==============================
+
+Blanking the bytes from 0x1e50 to 0x1e8f results in a missing transporter in
+the cluster under the key on Screen A.
+
+Blanking the bytes from 0x1e00 to 0x1e3f results in missing puzzle pieces above
+the skulls on Screen A.
+
+Blanking the bytes from 0x1da0 to 0x1ddf results in a missing puzzle piece at
+the top-left of Screen B. The first three bytes (01 02 06) appear to reference
+the piece at x=2, y=6 where the first byte is the screen number (Screen B).
+
+Each block of four bytes contains a screen number, x and y coordinates and
+possibly a reference to the specific piece at that location. It appears that
+the final number is the piece's location in the display area on Screen A.
+
+At 0x1e50, the four bytes (00 00 08 0D) appear to represent screen number,
+x and y coordinates and screen number for the transporter destination. The
+following two bytes (1E 17) are the x and y coordinates of the transporter
+destination.
+
+The next entry appears at 0x1e56 (00 00 12 0B 11 18) which would indicate a
+transporter at x=0, y=18 on Screen A with a destination on Screen L at x=17,
+y=24. However, row 24 appears to be part of a placeholder block of eight
+decorative wall rows, so the y coordinate appears to only take ordinary map
+rows into account.
+
+The end of the transporter definitions appears to be at 0x1fcf. There are zero
+bytes from 0x1fd0 to 0x1fff.
+
+Although transporters and transporter destinations are defined in the level
+data, it seems that they are only there as placeholders to reserve space.
+
+Puzzle piece sprites
+--------------------
+
+Since the puzzle piece locations are defined from 0x1da0 to 0x1e4f, there would
+appear to be 44 of them. However, there are two incompletely defined entries
+at 0x1e48 and 0x1e4c. In the area from 0x1c20 to 0x1d9f, there are lots of
+similar bytes. Changing the first 9 to the same byte results in a redefined
+puzzle piece shape for the first puzzle piece (on Screen B). The values in this
+area refer to the puzzle piece sprites and are given as offsets from the start
+of the sprite area (0x50 to 0x60).
+
+Note that 42 * 9 = 378 and that the area from 0x1c20 and 0x1d9f accommodates
+this number of bytes with six bytes to spare at the end.
+
+Tile sprites
+============
+
+Since the puzzle pieces seem to be defined completely in the area described
+then it is worth finding out where the other tile sprites are stored. Since
+there are 32 of them, 32 * 9 = 288 (0x1c0), we can look for similar definitions
+earlier in the file, possible from 0x1b00 to 0x1c1f.
+
+This appears to work well, except that the transporter sprite is defined as
+tile 11 and tile 2 is used to represent transporters in the level data.

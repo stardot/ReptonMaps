@@ -21,7 +21,7 @@ __all__ = ["sprites"]
 
 import UEFfile
 
-from sprites import Reader, sprite_table
+from sprites import Reader
 
 class NotFound(Exception):
     pass
@@ -104,6 +104,49 @@ class Repton2:
         
         return levels
     
+    def read_sprites(self):
+    
+        sprite_defs_address = 0x1b00
+        puzzle_sprite_defs_address = 0x1c20
+        
+        sprites = self._read_sprites(sprite_defs_address, 32)
+        sprites += self._read_sprites(puzzle_sprite_defs_address, 42)
+        
+        return sprites
+    
+    def _read_sprites(self, sprite_defs_address, number):
+    
+        reader = Reader(self.data[0x2340:0x2e00])
+        sprites = []
+        
+        for n in range(number):
+        
+            addr = sprite_defs_address + (n * 9)
+            offsets = map(lambda x: ord(x) * 0x08, self.data[addr:addr + 9])
+            
+            pieces = map(reader.read_sprite, offsets)
+            
+            sprite = []
+            for i in range(0, 9, 3):
+                for left, middle, right in zip(*pieces[i:i+3]):
+                    sprite.append(left + middle + right)
+            
+            sprite = "".join(sprite)
+            sprites.append(sprite)
+            
+            n += 1
+        
+        return sprites
+    
+    def read_transporter_definitions(self):
+    
+        pass
+    
+    def palette(self, level):
+    
+        wall_colour = self.colours[level - 1]
+        return [(0,0,0), wall_colour, (255,255,0), (0,255,0)]
+    
     def write_levels(self, levels):
     
         data = self.uef.contents[self.file_number]["data"][:0x2e00]
@@ -129,34 +172,3 @@ class Repton2:
                         offset -= 8
         
         self.uef.contents[self.file_number]["data"] = data
-    
-    def read_sprites(self):
-    
-        reader = Reader(self.data[0x2340:0x2e00])
-        
-        sprites = []
-        n = 0
-        
-        for offsets in sprite_table:
-        
-            if offsets is None:
-                continue
-            
-            pieces = map(reader.read_sprite, offsets)
-            
-            sprite = []
-            for i in range(0, 9, 3):
-                for left, middle, right in zip(*pieces[i:i+3]):
-                    sprite.append(left + middle + right)
-            
-            sprite = "".join(sprite)
-            sprites.append(sprite)
-            
-            n += 1
-        
-        return sprites
-    
-    def palette(self, level):
-    
-        wall_colour = self.colours[level - 1]
-        return [(0,0,0), wall_colour, (255,255,0), (0,255,0)]
