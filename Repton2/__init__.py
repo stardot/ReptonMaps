@@ -34,6 +34,17 @@ class Repton2:
     tile_width = 12
     tile_height = 24
     
+    colours = [(0,0,255), (255,0,0), (0,255,255), (0,0,255),
+               (255,0,255), (0,0,255), (0,255,255), (0,0,255),
+               (255,0,255), (0,0,255), (0,255,255), (0,0,255),
+               (255,0,255), (0,0,255), (0,255,255), (0,255,255)]
+    
+    level_heights = [24, 32, 24, 24, 24, 16, 32, 24,
+                     24, 24, 24, 24, 24, 24, 24, 16]
+    level_splits = [(24, 0), None, (16, 24), (24, 30), (24, 24), (16, 8), None, (24, 30),
+                    (24, 25), (0, 8), (24, 24), (16, 25), (24, 24), (24, 8),
+                    (24, 30), (8, 6)]
+    
     def __init__(self, uef_file):
     
         self.uef = UEFfile.UEFfile(uef_file)
@@ -56,18 +67,22 @@ class Repton2:
     def read_levels(self):
     
         levels = []
+        address = 0x2e00
         
-        for number in range(12):
+        for number in range(16):
         
-            address = 0x2e00 + (number * 480) + max(0, ((number - 1) * 160))
             level = []
-            if number == 0:
-                rows = 24
-            else:
-                rows = 32
+            rows = self.level_heights[number]
+            split = self.level_splits[number]
             
-            for row in range(rows):
-    
+            row = 0
+            
+            while row < rows:
+            
+                if split and row == split[0]:
+                    for inserted in range(32 - rows):
+                        level.append([split[1]]*32)
+                
                 current = 0
                 offset = 0
                 level.append([])
@@ -85,10 +100,12 @@ class Repton2:
                         current = current >> 5
                         offset -= 5
                         level[-1].append(value)
+                
+                row += 1
             
-            if number == 0:
-                for row in range(8):
-                    level.append([0]*32)
+            if split and row == split[0]:
+                for inserted in range(32 - rows):
+                    level.append([split[1]]*32)
             
             levels.append(level)
         
@@ -148,4 +165,5 @@ class Repton2:
     
     def palette(self, level):
     
-        return [(0,0,0), (255,0,0), (255,255,0), (0,255,0)]
+        wall_colour = self.colours[level - 1]
+        return [(0,0,0), wall_colour, (255,255,0), (0,255,0)]

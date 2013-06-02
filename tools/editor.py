@@ -36,8 +36,8 @@ class LevelWidget(QWidget):
     
         QWidget.__init__(self, parent)
         
-        self.xs = 4
-        self.ys = 2
+        self.xs = 2
+        self.ys = 1
         self.tw = tw
         self.th = th
         
@@ -157,8 +157,8 @@ class EditorWindow(QMainWindow):
     
         QMainWindow.__init__(self)
         
-        self.xs = 4
-        self.ys = 2
+        self.xs = 2
+        self.ys = 1
         self.tw = repton.tile_width
         self.th = repton.tile_height
         
@@ -257,7 +257,7 @@ class EditorWindow(QMainWindow):
         levelsMenu = self.menuBar().addMenu(self.tr("&Levels"))
         self.levelsGroup = QActionGroup(self)
         
-        for i in range(1, 13):
+        for i in range(1, 17):
             levelAction = levelsMenu.addAction(chr(64 + i))
             levelAction.setData(QVariant(i))
             levelAction.setCheckable(True)

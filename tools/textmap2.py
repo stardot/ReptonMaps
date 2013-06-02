@@ -69,7 +69,7 @@ if __name__ == "__main__":
     
     try:
         level_number = int(sys.argv[2])
-        if not 1 <= level_number <= 12:
+        if not 1 <= level_number <= 16:
             raise ValueError
     
     except ValueError:

@@ -68,9 +68,43 @@ it is clear to see that values of 0x1f (31) are solid wall pieces and that
 blank cells are 0x00 (0).
 
 The top of Screen B appears to start at 0x2fe0. Screen A is only 24 rows high.
-The other screens are 32 rows high.
+Many other screens are 32 rows high.
+
+Screen C is 24 rows high.
+
 
 Sprites appear to start at 0x2340.
 
 Spirits are 4 by 8 pixels.
 Other sprites are 12 by 24 pixels.
+
+Text characters start at 0x2040.
+Code appears to end at 0x1aff.
+
+Writing zero bytes into the file from 0x2001 to 0x203f results in a corrupted
+Screen A and a topmost transporter that sends Repton to the leftmost skull
+chamber with the palette for the level that should have been entered. This
+means that the palette data is probably stored separately.
+
+The first two bytes (0x2000, 0x2001) seem to control the displacement of the
+Screen A data. The following bytes seem to control transporter destinations.
+
+Byte 0x2028 appears to control the destination of the topmost transporter.
+Byte 0x202c appears to control the transporter one square down and to the left
+of it.
+Byte 0x2004 appears to control the transporter to Screen B (below the first
+boulder trap on the right of Screen A).
+
+Bytes 0x2004 and 0x2005 control different aspects of the transportation. It
+seems like the first byte controls what is copied into the top eight rows of
+the level buffer, and the second byte controls some of the rows beneath.
+
+It appears that each set of four bytes, from 0x2000 to 0x203f, contain four
+indices into the level data which each refer to eight rows of level data.
+The special index, 0x80, is the empty space at the bottom of Screen A.
+
+By inspecting the 64 bytes of level data and comparing them to the maps on the
+Stairway to Hell site, values of 0x80 and above appear to be placeholders for
+eight rows that contain a single type of tile. So, 0x80 is eight rows of empty
+space, 0x86 must be diamonds (as used in Screen P), and 0x83 has been tested to
+be earth.
