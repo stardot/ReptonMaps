@@ -55,46 +55,22 @@ values and cell types:
     30: upper right curved brick wall
     31: upper left curved brick wall
 
+Sprites are stored at 0x2500 in the REPTON2 file and are 8 by 16 pixels. See
+the table in the sprites module of the Repton package for the offsets into the
+sprite data.
 
 
-Sprites are stored at 0x2500 in the REPTON2 file with data at the following
-offsets and lengths:
+Repton 2 levels appear to start at 0x2e00 and encode the data in rows of 20
+bytes (5 bits per cell again).
 
-    Offset  Type    Length (bytes)
-    0       12      16
-    16      31      8
-    24      25      8
-    32      30      8
-    40      29      8
-    48      24      8
-    56      28      8
-    64      27      8
-    72      26      8
-    80      9       8
-    88      22      8
-    96      16      8
-    104     21      8
-    112     20      8
-    120     15      8
-    128     19      8
-    136     18      8
-    144     17      8
-    152     14      8
-    160     11      16
-    176     10      16
-    192     13      16
-    208     8       16  (top)
-    224     8       16  (bottom)
-    240     5       16  |_ overlapping
-    248     6       16  |  pieces
-    264     7       8
-    272     1       16  (top)
-    288     1       16  (bottom)
-    304     2       16  (top)
-    320     2       16  (bottom)
-    336     3       16  (top)
-    352     3       16  (bottom)
-    368     4       16  (top)
-    384     4       16  (bottom)
-    400     23      16  (top)
-    416     23      16  (bottom)
+Because the top row of Screen A is a single wall with two openings at the ends,
+it is clear to see that values of 0x1f (31) are solid wall pieces and that
+blank cells are 0x00 (0).
+
+The top of Screen B appears to start at 0x2fe0. Screen A is only 24 rows high.
+The other screens are 32 rows high.
+
+Sprites appear to start at 0x2340.
+
+Spirits are 4 by 8 pixels.
+Other sprites are 12 by 24 pixels.

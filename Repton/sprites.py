@@ -21,6 +21,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os, sys
 
+# Offsets into the sprite data for the top-left, top-right, bottom-left and
+# bottom-right 8 byte pieces of each sprite. For the blank piece, I just chose
+# a blank area in the file data.
+
 sprite_table = [
     (0x6a0, 0x6a0, 0x6a0, 0x6a0),   # blank
     (0x110, 0x118, 0x120, 0x128),   # diamond
