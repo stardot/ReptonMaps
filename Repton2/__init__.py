@@ -31,6 +31,9 @@ class IncorrectSize(Exception):
 
 class Repton2:
 
+    tile_width = 12
+    tile_height = 24
+    
     def __init__(self, uef_file):
     
         self.uef = UEFfile.UEFfile(uef_file)
@@ -142,3 +145,7 @@ class Repton2:
             n += 1
         
         return sprites
+    
+    def palette(self, level):
+    
+        return [(0,0,0), (255,0,0), (255,255,0), (0,255,0)]

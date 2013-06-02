@@ -25,18 +25,21 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
 from Repton import Repton
+from Repton2 import Repton2
 import UEFfile
 
 __version__ = "0.1"
 
 class LevelWidget(QWidget):
 
-    def __init__(self, parent = None):
+    def __init__(self, tw, th, parent = None):
     
         QWidget.__init__(self, parent)
         
         self.xs = 4
         self.ys = 2
+        self.tw = tw
+        self.th = th
         
         self.currentTile = 0
         
@@ -104,12 +107,12 @@ class LevelWidget(QWidget):
                 tile = self.level[r][c]
                 tile_image = self.tile_images[tile]
                 
-                painter.drawImage(c * 8 * self.xs, r * 16 * self.ys,
+                painter.drawImage(c * self.tw * self.xs, r * self.th * self.ys,
                                   tile_image)
         
         if r1 <= 4 <= r2 and c1 <= 4 <= c2:
-            x1, y1 = 4 * 8 * self.xs, 4 * 16 * self.ys
-            x2, y2 = 5 * 8 * self.xs - 1, 5 * 16 * self.ys - 1
+            x1, y1 = 4 * self.tw * self.xs, 4 * self.th * self.ys
+            x2, y2 = 5 * self.tw * self.xs - 1, 5 * self.th * self.ys - 1
             painter.drawLine(x1, y1, x2, y2)
             painter.drawLine(x1, y2, x2, y1)
         
@@ -117,23 +120,23 @@ class LevelWidget(QWidget):
     
     def sizeHint(self):
     
-        return QSize(32 * 8 * self.xs, 32 * 16 * self.ys)
+        return QSize(32 * self.tw * self.xs, 32 * self.th * self.ys)
     
     def _row_from_y(self, y):
     
-        return y/(16 * self.ys)
+        return y/(self.th * self.ys)
     
     def _column_from_x(self, x):
     
-        return x/(8 * self.xs)
+        return x/(self.tw * self.xs)
     
     def _y_from_row(self, r):
     
-        return r * 16 * self.ys
+        return r * self.th * self.ys
     
     def _x_from_column(self, c):
     
-        return c * 8 * self.xs
+        return c * self.tw * self.xs
     
     def writeTile(self, event, tile):
     
@@ -143,10 +146,10 @@ class LevelWidget(QWidget):
         if 0 <= r < 32 and 0 <= c < 32:
         
             self.level[r][c] = tile
-            tw = 8 * self.xs
+            tw = self.tw * self.xs
             
             self.update(QRect(self._x_from_column(c), self._y_from_row(r),
-                              tw, 16 * self.ys))
+                              tw, self.th * self.ys))
 
 class EditorWindow(QMainWindow):
 
@@ -156,18 +159,18 @@ class EditorWindow(QMainWindow):
         
         self.xs = 4
         self.ys = 2
+        self.tw = repton.tile_width
+        self.th = repton.tile_height
+        
         self.repton = repton
         self.path = ""
         
         self.level = 1
-        self.colours = [(255,0,0), (0,0,255), (255,0,255), (255,0,0),
-                        (255,0,0), (0,0,255), (0,255,255), (255,0,0),
-                        (0,0,255), (255,0,0), (255,0,255), (0,255,255)]
         
         self.loadImages()
         self.loadLevels()
         
-        self.levelWidget = LevelWidget()
+        self.levelWidget = LevelWidget(self.tw, self.th)
         self.levelWidget.setTileImages(self.tile_images)
         
         self.createMenus()
@@ -185,13 +188,12 @@ class EditorWindow(QMainWindow):
     def loadImages(self):
     
         self.tile_images = []
-        colour = self.colours[self.level - 1]
         
-        palette = map(lambda x: qRgb(*x), [(0,255,0), (255,255,0), colour, (0,0,0)])
+        palette = map(lambda x: qRgb(*x), self.repton.palette(self.level))
         
         for sprite in self.repton.read_sprites():
         
-            image = QImage(sprite, 8, 16, QImage.Format_Indexed8).scaled(self.xs * 8, self.ys * 16)
+            image = QImage(sprite, self.tw, self.th, QImage.Format_Indexed8).scaled(self.xs * self.tw, self.ys * self.th)
             image.setColorTable(palette)
             self.tile_images.append(image)
     
@@ -328,7 +330,17 @@ if __name__ == "__main__":
         app.quit()
         sys.exit(1)
     
-    repton = Repton(app.arguments()[1])
+    try:
+        repton = Repton(app.arguments()[1])
+        try_repton2 = False
+    except:
+        try_repton2 = True
+    
+    if try_repton2:
+        try:
+            repton = Repton2(app.arguments()[1])
+        except:
+            raise
     
     window = EditorWindow(repton)
     window.show()
