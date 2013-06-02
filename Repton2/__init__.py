@@ -39,12 +39,6 @@ class Repton2:
                (255,0,255), (0,0,255), (0,255,255), (0,0,255),
                (255,0,255), (0,0,255), (0,255,255), (0,255,255)]
     
-    level_heights = [24, 32, 24, 24, 24, 16, 32, 24,
-                     24, 24, 24, 24, 24, 24, 24, 16]
-    level_splits = [(24, 0), None, (16, 24), (24, 30), (24, 24), (16, 8), None, (24, 30),
-                    (24, 25), (0, 8), (24, 24), (16, 25), (24, 24), (24, 8),
-                    (24, 30), (8, 6)]
-    
     def __init__(self, uef_file):
     
         self.uef = UEFfile.UEFfile(uef_file)
@@ -67,45 +61,44 @@ class Repton2:
     def read_levels(self):
     
         levels = []
-        address = 0x2e00
         
         for number in range(16):
         
             level = []
-            rows = self.level_heights[number]
-            split = self.level_splits[number]
             
-            row = 0
+            offsets_address = 0x2000 + (number * 4)
             
-            while row < rows:
+            for offset in range(4):
             
-                if split and row == split[0]:
-                    for inserted in range(32 - rows):
-                        level.append([split[1]]*32)
+                offset = ord(self.data[offsets_address + offset])
                 
-                current = 0
-                offset = 0
-                level.append([])
-    
-                for column in range(32):
-    
-                    if offset < 5:
-                        ch = self.data[address]
-                        current = current | (ord(ch) << offset)
-                        address += 1
-                        offset += 8
-    
-                    if offset >= 5:
-                        value = current & 0x1f
-                        current = current >> 5
-                        offset -= 5
-                        level[-1].append(value)
+                if offset & 0x80:
                 
-                row += 1
+                    for row in range(8):
+                        level.append([offset & 0x1f]*32)
+                
+                else:
+                    address = 0x2e00 + (offset * 160)
+                    
+                    for row in range(8):
+                    
+                        current = 0
+                        offset = 0
+                        level.append([])
+                        
+                        for column in range(32):
             
-            if split and row == split[0]:
-                for inserted in range(32 - rows):
-                    level.append([split[1]]*32)
+                            if offset < 5:
+                                ch = self.data[address]
+                                current = current | (ord(ch) << offset)
+                                address += 1
+                                offset += 8
+            
+                            if offset >= 5:
+                                value = current & 0x1f
+                                current = current >> 5
+                                offset -= 5
+                                level[-1].append(value)
             
             levels.append(level)
         
