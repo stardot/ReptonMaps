@@ -32,15 +32,30 @@ __version__ = "0.1"
 
 class LevelWidget(QWidget):
 
-    def __init__(self, tw, th, parent = None):
+    destinationRequested = pyqtSignal(int, int, int)
+    
+    def __init__(self, repton, parent = None):
     
         QWidget.__init__(self, parent)
         
-        self.xs = 2
-        self.ys = 1
-        self.tw = tw
-        self.th = th
+        self.repton = repton
         
+        self.tw = repton.tile_width
+        self.th = repton.tile_height
+        
+        if isinstance(repton, Repton):
+            self.xs = 4
+            self.ys = 2
+        
+        elif isinstance(repton, Repton2):
+            self.xs = 2
+            self.ys = 1
+            self.transporters, self.destinations = repton.read_transporter_defs()
+            self.puzzle = repton.read_puzzle_defs()
+        
+        self.highlight = None
+        
+        self.level_number = 1
         self.currentTile = 0
         
         self.setAutoFillBackground(True)
@@ -60,16 +75,21 @@ class LevelWidget(QWidget):
         
         self.update()
                 
-    def setLevel(self, level):
+    def setLevel(self, number, level):
     
+        self.level_number = number
         self.level = level
+        
+        if isinstance(self.repton, Repton):
+            self.highlight = (4, 4)
+        
         self.update()
     
     def mousePressEvent(self, event):
     
         if event.button() == Qt.LeftButton:
             self.writeTile(event, self.currentTile)
-        elif event.button() == Qt.RightButton:
+        elif event.button() == Qt.MiddleButton:
             self.writeTile(event, 0)
         else:
             event.ignore()
@@ -78,7 +98,7 @@ class LevelWidget(QWidget):
     
         if event.buttons() & Qt.LeftButton:
             self.writeTile(event, self.currentTile)
-        elif event.buttons() & Qt.RightButton:
+        elif event.buttons() & Qt.MiddleButton:
             self.writeTile(event, 0)
         else:
             event.ignore()
@@ -105,18 +125,55 @@ class LevelWidget(QWidget):
             for c in range(c1, c2 + 1):
             
                 tile = self.level[r][c]
+                
+                if isinstance(self.repton, Repton2):
+                    if tile == 2:
+                        tile = self.getTransporterOrPuzzleTile(r, c)
+                    elif tile == 9:
+                        tile = self.getFinishOrSpiritTile(r, c)
+                
                 tile_image = self.tile_images[tile]
                 
                 painter.drawImage(c * self.tw * self.xs, r * self.th * self.ys,
                                   tile_image)
         
-        if r1 <= 4 <= r2 and c1 <= 4 <= c2:
-            x1, y1 = 4 * self.tw * self.xs, 4 * self.th * self.ys
-            x2, y2 = 5 * self.tw * self.xs - 1, 5 * self.th * self.ys - 1
-            painter.drawLine(x1, y1, x2, y2)
-            painter.drawLine(x1, y2, x2, y1)
+        if self.highlight:
+            x1 = self.highlight[0] * self.tw * self.xs
+            y1 = self.highlight[1] * self.th * self.ys
+            w = (self.tw * self.xs) - 1
+            h = (self.th * self.ys) - 1
+            painter.drawRect(x1, y1, w, h)
+            painter.drawLine(x1, y1, x1 + w, y1 + h)
+            painter.drawLine(x1, y1 + h, x1 + w, y1)
         
         painter.end()
+    
+    def contextMenuEvent(self, event):
+    
+        if isinstance(self.repton, Repton):
+            event.ignore()
+            return
+        
+        r, c = self._row_from_y(event.y()), self._column_from_x(event.x())
+        if (c, r) in self.transporters[self.level_number - 1]:
+            screen, (x, y) = self.transporters[self.level_number - 1][(c, r)]
+            
+            menu = QMenu(self.tr("Transporter"))
+            goAction = menu.addAction(self.tr("Go to destination"))
+        
+        elif (c, r) in self.destinations[self.level_number - 1]:
+            screen, (x, y) = self.destinations[self.level_number - 1][(c, r)]
+
+            menu = QMenu(self.tr("Destination"))
+            goAction = menu.addAction(self.tr("Go to transporter"))
+        
+        else:
+            event.ignore()
+            return
+        
+        if menu.exec_(event.globalPos()) == goAction:
+            self.destinationRequested.emit(screen + 1, x, y)
+            self.highlight = (x, y)
     
     def sizeHint(self):
     
@@ -138,6 +195,31 @@ class LevelWidget(QWidget):
     
         return c * self.tw * self.xs
     
+    def getTransporterOrPuzzleTile(self, r, c):
+    
+        if (c, r) in self.transporters[self.level_number - 1]:
+            # Transporters actually use tile 11.
+            return 11
+        elif (c, r) in self.destinations[self.level_number - 1]:
+            # Destinations are currently unmarked.
+            return 2
+        elif (c, r) in self.puzzle[self.level_number - 1]:
+            # Our puzzle piece sprite numbers are recorded in the first tuple
+            # element.
+            return self.puzzle[self.level_number - 1][(c, r)][0]
+        else:
+            # We should never reach here with self-consistent data.
+            return 0
+    
+    def getFinishOrSpiritTile(self, r, c):
+    
+        # Replace the finishing piece with spirits on all levels except for
+        # the first.
+        if self.level_number == 1:
+            return 9
+        else:
+            return 74
+    
     def writeTile(self, event, tile):
     
         r = self._row_from_y(event.y())
@@ -157,8 +239,13 @@ class EditorWindow(QMainWindow):
     
         QMainWindow.__init__(self)
         
-        self.xs = 2
-        self.ys = 1
+        if isinstance(repton, Repton):
+            self.xs = 4
+            self.ys = 2
+        elif isinstance(repton, Repton2):
+            self.xs = 2
+            self.ys = 1
+        
         self.tw = repton.tile_width
         self.th = repton.tile_height
         
@@ -170,8 +257,10 @@ class EditorWindow(QMainWindow):
         self.loadImages()
         self.loadLevels()
         
-        self.levelWidget = LevelWidget(self.tw, self.th)
+        self.levelWidget = LevelWidget(repton)
         self.levelWidget.setTileImages(self.tile_images)
+        
+        self.levelWidget.destinationRequested.connect(self.goToDestination)
         
         self.createMenus()
         self.createToolBars()
@@ -180,6 +269,7 @@ class EditorWindow(QMainWindow):
         # levels menu.
         self.tileGroup.actions()[0].trigger()
         self.levelsGroup.actions()[0].trigger()
+        self.levelWidget.highlight = (16, 7)
         
         area = QScrollArea()
         area.setWidget(self.levelWidget)
@@ -257,9 +347,9 @@ class EditorWindow(QMainWindow):
         levelsMenu = self.menuBar().addMenu(self.tr("&Levels"))
         self.levelsGroup = QActionGroup(self)
         
-        for i in range(1, 17):
-            levelAction = levelsMenu.addAction(chr(64 + i))
-            levelAction.setData(QVariant(i))
+        for i in range(len(self.levels)):
+            levelAction = levelsMenu.addAction(chr(64 + i + 1))
+            levelAction.setData(QVariant(i + 1))
             levelAction.setCheckable(True)
             self.levelsGroup.addAction(levelAction)
         
@@ -270,7 +360,9 @@ class EditorWindow(QMainWindow):
         self.tilesToolBar = self.addToolBar(self.tr("Tiles"))
         self.tileGroup = QActionGroup(self)
         
-        for symbol in range(32):
+        # 32 tiles + 42 puzzle pieces + 1 spirit = 75
+        
+        for symbol in range(75):
         
             icon = QIcon(QPixmap.fromImage(self.tile_images[symbol]))
             action = self.tilesToolBar.addAction(icon, str(symbol))
@@ -286,12 +378,15 @@ class EditorWindow(QMainWindow):
     def selectLevel(self, action):
     
         number = action.data().toInt()[0]
+        self.setLevel(number)
+    
+    def setLevel(self, number):
+    
         data = self.levels[number - 1]
-        
         self.level = number
         self.loadImages()
         self.levelWidget.setTileImages(self.tile_images)
-        self.levelWidget.setLevel(data)
+        self.levelWidget.setLevel(number, data)
         
         # Also change the sprites in the toolbar.
         for action in self.tileGroup.actions():
@@ -307,6 +402,10 @@ class EditorWindow(QMainWindow):
         
         if answer == QMessageBox.Yes:
             self.levelWidget.clearLevel()
+    
+    def goToDestination(self, number, x, y):
+    
+        self.setLevel(number)
     
     def sizeHint(self):
     

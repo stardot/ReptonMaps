@@ -106,17 +106,23 @@ class Repton2:
     
     def read_sprites(self):
     
+        reader = Reader(self.data[0x2340:0x2e00])
+        
         sprite_defs_address = 0x1b00
         puzzle_sprite_defs_address = 0x1c20
         
-        sprites = self._read_sprites(sprite_defs_address, 32)
-        sprites += self._read_sprites(puzzle_sprite_defs_address, 42)
+        sprites = self._read_sprites(reader, sprite_defs_address, 32)
+        sprites += self._read_sprites(reader, puzzle_sprite_defs_address, 42)
+        
+        # Define the spirit sprite separately.
+        sprites += [self._read_sprite(reader, [0x300, 0x300, 0x300,
+                                              0x300, 0x000, 0x300,
+                                              0x300, 0x300, 0x300])]
         
         return sprites
     
-    def _read_sprites(self, sprite_defs_address, number):
+    def _read_sprites(self, reader, sprite_defs_address, number):
     
-        reader = Reader(self.data[0x2340:0x2e00])
         sprites = []
         
         for n in range(number):
@@ -124,23 +130,63 @@ class Repton2:
             addr = sprite_defs_address + (n * 9)
             offsets = map(lambda x: ord(x) * 0x08, self.data[addr:addr + 9])
             
-            pieces = map(reader.read_sprite, offsets)
-            
-            sprite = []
-            for i in range(0, 9, 3):
-                for left, middle, right in zip(*pieces[i:i+3]):
-                    sprite.append(left + middle + right)
-            
-            sprite = "".join(sprite)
+            sprite = self._read_sprite(reader, offsets)
             sprites.append(sprite)
             
             n += 1
         
         return sprites
     
-    def read_transporter_definitions(self):
+    def _read_sprite(self, reader, offsets):
     
-        pass
+        pieces = map(reader.read_sprite, offsets)
+        
+        sprite = []
+        for i in range(0, 9, 3):
+            for left, middle, right in zip(*pieces[i:i+3]):
+                sprite.append(left + middle + right)
+        
+        return "".join(sprite)
+    
+    def read_transporter_defs(self):
+    
+        transporters_address = 0x1e50
+        transporters = {}
+        destinations = {}
+        
+        i = transporters_address
+        while i < 0x1fd0:
+        
+            src_screen, src_x, src_y = map(ord, self.data[i:i+3])
+            dest_screen, dest_x, dest_y = map(ord, self.data[i+3:i+6])
+            
+            transporters.setdefault(src_screen, {})[(src_x, src_y)] = \
+                dest_screen, (dest_x, dest_y)
+            destinations.setdefault(dest_screen, {})[(dest_x, dest_y)] = \
+                src_screen, (src_x, src_y)
+            
+            i += 6
+        
+        return transporters, destinations
+    
+    def read_puzzle_defs(self):
+    
+        puzzle_address = 0x1da0
+        pieces = {}
+        
+        # Define the puzzle pieces as tiles 32 to 73.
+        number = 32
+        
+        i = puzzle_address
+        while i < 0x1e48:
+        
+            screen, x, y, destination = map(ord, self.data[i:i+4])
+            pieces.setdefault(screen, {})[(x, y)] = (number, destination)
+            
+            number += 1
+            i += 4
+        
+        return pieces
     
     def palette(self, level):
     
