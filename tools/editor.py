@@ -50,8 +50,6 @@ class LevelWidget(QWidget):
         elif isinstance(repton, Repton2):
             self.xs = 2
             self.ys = 1
-            self.transporters, self.destinations = repton.read_transporter_defs()
-            self.puzzle = repton.read_puzzle_defs()
         
         self.highlight = None
         
@@ -75,10 +73,14 @@ class LevelWidget(QWidget):
         
         self.update()
                 
-    def setLevel(self, number, level):
+    def setLevel(self, number, level, transporters = {}, destinations = {},
+                       puzzle = {}):
     
         self.level_number = number
         self.level = level
+        self.transporters = transporters
+        self.destinations = destinations
+        self.puzzle = puzzle
         
         if isinstance(self.repton, Repton):
             self.highlight = (4, 4)
@@ -197,19 +199,22 @@ class LevelWidget(QWidget):
     
     def getTransporterOrPuzzleTile(self, r, c):
     
-        if (c, r) in self.transporters[self.level_number - 1]:
-            # Transporters actually use tile 11.
-            return 11
-        elif (c, r) in self.destinations[self.level_number - 1]:
-            # Destinations are currently unmarked.
-            return 2
-        elif (c, r) in self.puzzle[self.level_number - 1]:
-            # Our puzzle piece sprite numbers are recorded in the first tuple
-            # element.
-            return self.puzzle[self.level_number - 1][(c, r)][0]
-        else:
-            # We should never reach here with self-consistent data.
-            return 0
+        try:
+            if (c, r) in self.transporters[self.level_number - 1]:
+                # Transporters actually use tile 11.
+                return 11
+            elif (c, r) in self.destinations[self.level_number - 1]:
+                # Destinations are currently unmarked.
+                return 2
+            elif (c, r) in self.puzzle[self.level_number - 1]:
+                # Our puzzle piece sprite numbers are recorded in the first tuple
+                # element.
+                return self.puzzle[self.level_number - 1][(c, r)][0]
+        except KeyError:
+            pass
+        
+        # We should never reach here with self-consistent data.
+        return 0
     
     def getFinishOrSpiritTile(self, r, c):
     
@@ -250,17 +255,17 @@ class EditorWindow(QMainWindow):
         self.th = repton.tile_height
         
         self.repton = repton
-        self.path = ""
+        self.transporters, self.destinations = repton.read_transporter_defs()
+        self.puzzle = repton.read_puzzle_defs()
         
+        self.path = ""
         self.level = 1
+        
+        self.levelWidget = LevelWidget(repton)
+        self.levelWidget.destinationRequested.connect(self.goToDestination)
         
         self.loadImages()
         self.loadLevels()
-        
-        self.levelWidget = LevelWidget(repton)
-        self.levelWidget.setTileImages(self.tile_images)
-        
-        self.levelWidget.destinationRequested.connect(self.goToDestination)
         
         self.createMenus()
         self.createToolBars()
@@ -290,6 +295,11 @@ class EditorWindow(QMainWindow):
     def loadLevels(self):
     
         self.levels = self.repton.read_levels()
+        
+        if isinstance(self.repton, Repton2):
+        
+            self.transporters, self.destinations = repton.read_transporter_defs()
+            self.puzzle = repton.read_puzzle_defs()
     
     def saveAs(self):
     
@@ -307,7 +317,12 @@ class EditorWindow(QMainWindow):
     def saveLevels(self, path):
     
         # Write the levels back to the UEF file.
-        self.repton.write_levels(self.levels)
+        if isinstance(self.repton, Repton):
+            self.repton.write_levels(self.levels)
+        elif isinstance(self.repton, Repton2):
+            self.repton.write_levels(self.levels, self.transporters, self.puzzle)
+        else:
+            return
         
         # Write the new UEF file.
         u = UEFfile.UEFfile(creator = 'Repton Editor ' + __version__)
@@ -378,6 +393,7 @@ class EditorWindow(QMainWindow):
     def selectLevel(self, action):
     
         number = action.data().toInt()[0]
+        self.levelWidget.highlight = None
         self.setLevel(number)
     
     def setLevel(self, number):
@@ -386,7 +402,12 @@ class EditorWindow(QMainWindow):
         self.level = number
         self.loadImages()
         self.levelWidget.setTileImages(self.tile_images)
-        self.levelWidget.setLevel(number, data)
+        
+        if isinstance(self.repton, Repton2):
+            self.levelWidget.setLevel(number, data, self.transporters,
+                                      self.destinations, self.puzzle)
+        else:
+            self.levelWidget.setLevel(number, data)
         
         # Also change the sprites in the toolbar.
         for action in self.tileGroup.actions():
@@ -405,7 +426,7 @@ class EditorWindow(QMainWindow):
     
     def goToDestination(self, number, x, y):
     
-        self.setLevel(number)
+        self.levelsGroup.actions()[number - 1].trigger()
     
     def sizeHint(self):
     

@@ -29,15 +29,23 @@ class NotFound(Exception):
 class IncorrectSize(Exception):
     pass
 
+class TooManyAreas(Exception):
+    pass
+
 class Repton2:
 
     tile_width = 12
     tile_height = 24
     
-    colours = [(0,0,255), (255,0,0), (0,255,255), (0,0,255),
-               (255,0,255), (0,0,255), (0,255,255), (0,0,255),
-               (255,0,255), (0,0,255), (0,255,255), (0,0,255),
-               (255,0,255), (0,0,255), (0,255,255), (0,255,255)]
+    wall_colours = [(0,0,255), (255,0,0), (0,255,255), (0,0,255),
+                    (255,0,255), (0,0,255), (0,255,255), (0,0,255),
+                    (255,0,255), (0,0,255), (0,255,255), (255,0,0),
+                    (255,0,255), (0,0,255), (0,255,255), (0,255,255)]
+    
+    repton_colours = [(0,255,0), (0,255,0), (0,255,0), (0,255,0),
+                      (0,255,0), (0,255,0), (0,255,0), (0,255,0),
+                      (0,255,0), (0,255,0), (0,255,0), (0,255,255),
+                      (0,255,0), (0,255,0), (0,255,0), (0,255,0)]
     
     def __init__(self, uef_file):
     
@@ -190,18 +198,97 @@ class Repton2:
     
     def palette(self, level):
     
-        wall_colour = self.colours[level - 1]
-        return [(0,0,0), wall_colour, (255,255,0), (0,255,0)]
+        wall_colour = self.wall_colours[level - 1]
+        repton_colour = self.repton_colours[level - 1]
+        return [(0,0,0), wall_colour, (255,255,0), repton_colour]
     
-    def write_levels(self, levels):
+    def write_levels(self, levels, transporters, puzzle_pieces):
     
-        data = self.uef.contents[self.file_number]["data"][:0x2e00]
+        data = self.uef.contents[self.file_number]["data"][:0x1da0]
         
-        for number in range(len(levels)):
+        pieces = {}
         
-            level = levels[number]
+        for screen, defs in puzzle_pieces.items():
+        
+            for (x, y), (number, destination) in defs.items():
             
-            for row in range(32):
+                # Remember that we gave these pieces tile numbers from 32.
+                pieces[number - 32] = (screen, x, y, destination)
+        
+        for i in range(42):
+            data += "".join(map(chr, pieces[i]))
+        
+        data += "\x6b\x00\x00\x00\x00\x00\x00\x00"
+        
+        for screen, defs in transporters.items():
+        
+            for (x, y), (dest_screen, (dest_x, dest_y)) in defs.items():
+            
+                data += "".join(map(chr, (screen, x, y, dest_screen, dest_x, dest_y)))
+        
+        data += (0x2000 - len(data))*"\x00"
+        
+        # Level area definitions
+        
+        # Find filled areas.
+        area_dict = {}
+        areas = []
+        
+        a = 0
+        for level in levels:
+        
+            for row in range(0, 32, 8):
+                area = tuple(reduce(list.__add__, level[row:row+8]))
+                
+                # Reference existing areas if possible.
+                try:
+                    areas.append(area_dict[area])
+                    continue
+                except KeyError:
+                    pass
+                
+                # Determine if the area is completely filled with one tile type.
+                first_tile = area[0]
+                for tile in area:
+                    if tile != first_tile:
+                        area_dict[area] = a
+                        areas.append(a)
+                        a += 1
+                        break
+                else:
+                    # Reference special tile-filled areas.
+                    areas.append(0x80 | first_tile)
+        
+        if a > 0x30:
+            raise TooManyAreas
+        
+        data += "".join(map(chr, areas))
+        
+        # Text character definitions
+        data += self.uef.contents[self.file_number]["data"][0x2040:0x2340]
+        
+        # Sprite definitions
+        data += self.uef.contents[self.file_number]["data"][0x2340:0x2e00]
+        
+        # Level definitions
+        next = 0
+        
+        for a in range(len(areas)):
+        
+            if a % 4 == 0:
+                level = levels[a/4]
+            
+            area = areas[a]
+            
+            # If the area is a special area or refers to one that has already
+            # occurred then do not write its data to the file.
+            if area & 0x80 != 0 or area < next:
+                continue
+            
+            next = area + 1
+            start_row = (a % 4) * 8
+            
+            for row in range(start_row, start_row + 8):
             
                 current = 0
                 offset = 0
