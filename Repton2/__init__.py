@@ -162,6 +162,11 @@ class Repton2:
         transporters = {}
         destinations = {}
         
+        # Initialise dictionaries for each screen.
+        for screen in range(16):
+            transporters[screen] = {}
+            destinations[screen] = {}
+        
         i = transporters_address
         while i < 0x1fd0:
         
@@ -181,20 +186,26 @@ class Repton2:
     
         puzzle_address = 0x1da0
         pieces = {}
+        piece_numbers = {}
         
-        # Define the puzzle pieces as tiles 32 to 73.
-        number = 32
+        # Initialise dictionaries for each screen.
+        for screen in range(16):
+            pieces[screen] = {}
+        
+        # Give the puzzle pieces numbers from 0 to 41.
+        number = 0
         
         i = puzzle_address
         while i < 0x1e48:
         
             screen, x, y, destination = map(ord, self.data[i:i+4])
-            pieces.setdefault(screen, {})[(x, y)] = (number, destination)
+            pieces[screen][(x, y)] = (number, destination)
+            piece_numbers[number] = (screen, (x, y))
             
             number += 1
             i += 4
         
-        return pieces
+        return pieces, piece_numbers
     
     def palette(self, level):
     
@@ -213,10 +224,14 @@ class Repton2:
             for (x, y), (number, destination) in defs.items():
             
                 # Remember that we gave these pieces tile numbers from 32.
-                pieces[number - 32] = (screen, x, y, destination)
+                pieces[number] = (screen, x, y, destination)
         
         for i in range(42):
-            data += "".join(map(chr, pieces[i]))
+            try:
+                data += "".join(map(chr, pieces[i]))
+            except KeyError:
+                # Use a placeholder piece.
+                data += "\x00\x00\x00\x00"
         
         data += "\x6b\x00\x00\x00\x00\x00\x00\x00"
         

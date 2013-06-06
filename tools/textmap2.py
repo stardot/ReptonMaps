@@ -24,7 +24,7 @@ from Repton2 import IncorrectSize, NotFound, Repton2
 
 chars = {
     0: " ",                 # space
-    1: ".",                 # space
+    1: ".",                 # space (transporter destination)
     2: "T",                 # transporter/puzzle piece
     3: "'",                 # earth (cross)
     4: ",",                 # earth (top-right, bottom-left)
@@ -34,7 +34,7 @@ chars = {
     8: "S",                 # skull
     9: "F",                 # finishing piece/spirit
     10: "s",                # status piece
-    11: '?',
+    11: '?',                # transporter (sprite, but not used in level data)
     12: "C",                # cage
     13: "$",                # safe
     14: "O",                # boulder

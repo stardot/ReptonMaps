@@ -60,6 +60,8 @@ class LevelWidget(QWidget):
         p = QPalette()
         p.setColor(QPalette.Window, Qt.black)
         self.setPalette(p)
+        
+        self.setMouseTracking(True)
     
     def setTileImages(self, tile_images):
     
@@ -74,13 +76,14 @@ class LevelWidget(QWidget):
         self.update()
                 
     def setLevel(self, number, level, transporters = {}, destinations = {},
-                       puzzle = {}):
+                       puzzle = {}, piece_numbers = {}):
     
         self.level_number = number
         self.level = level
         self.transporters = transporters
         self.destinations = destinations
         self.puzzle = puzzle
+        self.piece_numbers = piece_numbers
         
         if isinstance(self.repton, Repton):
             self.highlight = (4, 4)
@@ -89,21 +92,32 @@ class LevelWidget(QWidget):
     
     def mousePressEvent(self, event):
     
+        r = self._row_from_y(event.y())
+        c = self._column_from_x(event.x())
+        
         if event.button() == Qt.LeftButton:
-            self.writeTile(event, self.currentTile)
+            self.writeTile(c, r, self.currentTile)
         elif event.button() == Qt.MiddleButton:
-            self.writeTile(event, 0)
+            self.writeTile(c, r, 0)
         else:
             event.ignore()
     
     def mouseMoveEvent(self, event):
     
+        r = self._row_from_y(event.y())
+        c = self._column_from_x(event.x())
+        
         if event.buttons() & Qt.LeftButton:
-            self.writeTile(event, self.currentTile)
+            self.writeTile(c, r, self.currentTile)
         elif event.buttons() & Qt.MiddleButton:
-            self.writeTile(event, 0)
+            self.writeTile(c, r, 0)
         else:
+            self.updateCursor(event)
             event.ignore()
+    
+    def mouseReleaseEvent(self, event):
+    
+        self.updateCursor(event)
     
     def paintEvent(self, event):
     
@@ -177,6 +191,16 @@ class LevelWidget(QWidget):
             self.destinationRequested.emit(screen + 1, x, y)
             self.highlight = (x, y)
     
+    def updateCursor(self, event):
+    
+        r, c = self._row_from_y(event.y()), self._column_from_x(event.x())
+        if (c, r) in self.transporters[self.level_number - 1]:
+            self.setCursor(Qt.PointingHandCursor)
+        elif (c, r) in self.destinations[self.level_number - 1]:
+            self.setCursor(Qt.PointingHandCursor)
+        else:
+            self.unsetCursor()
+    
     def sizeHint(self):
     
         return QSize(32 * self.tw * self.xs, 32 * self.th * self.ys)
@@ -203,13 +227,10 @@ class LevelWidget(QWidget):
             if (c, r) in self.transporters[self.level_number - 1]:
                 # Transporters actually use tile 11.
                 return 11
-            elif (c, r) in self.destinations[self.level_number - 1]:
-                # Destinations are currently unmarked.
-                return 2
             elif (c, r) in self.puzzle[self.level_number - 1]:
-                # Our puzzle piece sprite numbers are recorded in the first tuple
-                # element.
-                return self.puzzle[self.level_number - 1][(c, r)][0]
+                # Our puzzle piece numbers are recorded in the first tuple
+                # element. We translate this to a tile number.
+                return self.puzzle[self.level_number - 1][(c, r)][0] + 32
         except KeyError:
             pass
         
@@ -225,18 +246,87 @@ class LevelWidget(QWidget):
         else:
             return 74
     
-    def writeTile(self, event, tile):
+    def writeTile(self, c, r, tile):
     
-        r = self._row_from_y(event.y())
-        c = self._column_from_x(event.x())
+        if not (0 <= r < 32 and 0 <= c < 32):
+            return
         
-        if 0 <= r < 32 and 0 <= c < 32:
+        # Do not allow spirits to be used on Screen A.
+        if tile == 75 and self.level_number == 1:
+            return
         
-            self.level[r][c] = tile
-            tw = self.tw * self.xs
+        previous = self.level[r][c]
+        
+        if previous == 2:
+        
+            # Find out what the previous tile refer to.
+            actual_previous = self.getTransporterOrPuzzleTile(r, c)
             
-            self.update(QRect(self._x_from_column(c), self._y_from_row(r),
-                              tw, self.th * self.ys))
+            # If there is no change, just return.
+            if actual_previous == tile:
+                return
+            
+            if actual_previous == 11:
+            
+                # Remove the transporter entry at this location.
+                dest_screen, (x, y) = self.transporters[self.level_number - 1][(c, r)]
+                del self.transporters[self.level_number - 1][(c, r)]
+                del self.destinations[dest_screen][(x, y)]
+            
+            elif 32 <= actual_previous < 74:
+            
+                # The puzzle piece at this location is removed.
+                number, destination = self.puzzle[self.level_number - 1][(c, r)]
+                del self.puzzle[self.level_number - 1][(c, r)]
+                del self.piece_numbers[number]
+        
+        if tile == 11:
+        
+            # Create a new transporter entry. The new transporter's
+            # destination is its own location.
+            self.transporters[self.level_number - 1][(c, r)] = (self.level_number - 1, (c, r))
+            self.destinations[self.level_number - 1][(c, r)] = (self.level_number - 1, (c, r))
+            
+            # Insert tile 2 instead.
+            tile = 2
+        
+        elif tile < 3:
+        
+            # Write a blank space, even though tile 2 is technically a
+            # transporter tile when stored in map data and tile 1 is a
+            # transporter destination.
+            tile = 0
+        
+        elif tile == 74:
+        
+            # Spirit (only available on Screen A)
+            tile = 9
+        
+        elif 32 <= tile <= 73:
+        
+            # Puzzle pieces are handled like transporters, except that each one
+            # is unique.
+            number = tile - 32
+            try:
+                old_screen, (old_x, old_y) = self.piece_numbers[number]
+                if old_screen == self.level_number - 1:
+                    self.writeTile(old_x, old_y, 0)
+                
+                del self.puzzle[old_screen][(old_x, old_y)]
+            except KeyError:
+                pass
+            
+            self.puzzle[self.level_number - 1][(c, r)] = (number, 0)
+            self.piece_numbers[number] = (self.level_number - 1, (c, r))
+            
+            # Insert tile 2 instead.
+            tile = 2
+        
+        self.level[r][c] = tile
+        tw = self.tw * self.xs
+        
+        self.update(QRect(self._x_from_column(c), self._y_from_row(r),
+                          tw, self.th * self.ys))
 
 class EditorWindow(QMainWindow):
 
@@ -256,7 +346,7 @@ class EditorWindow(QMainWindow):
         
         self.repton = repton
         self.transporters, self.destinations = repton.read_transporter_defs()
-        self.puzzle = repton.read_puzzle_defs()
+        self.puzzle, self.piece_numbers = repton.read_puzzle_defs()
         
         self.path = ""
         self.level = 1
@@ -299,7 +389,7 @@ class EditorWindow(QMainWindow):
         if isinstance(self.repton, Repton2):
         
             self.transporters, self.destinations = repton.read_transporter_defs()
-            self.puzzle = repton.read_puzzle_defs()
+            self.puzzle, self.piece_numbers = repton.read_puzzle_defs()
     
     def saveAs(self):
     
@@ -372,19 +462,22 @@ class EditorWindow(QMainWindow):
     
     def createToolBars(self):
     
-        self.tilesToolBar = self.addToolBar(self.tr("Tiles"))
         self.tileGroup = QActionGroup(self)
         
         # 32 tiles + 42 puzzle pieces + 1 spirit = 75
         
-        for symbol in range(75):
+        for symbols in [range(0, 32) + [74], range(32, 74)]:
         
-            icon = QIcon(QPixmap.fromImage(self.tile_images[symbol]))
-            action = self.tilesToolBar.addAction(icon, str(symbol))
-            action.setData(QVariant(symbol))
-            action.setCheckable(True)
-            self.tileGroup.addAction(action)
-            action.triggered.connect(self.setCurrentTile)
+            tilesToolBar = self.addToolBar(self.tr("Tiles"))
+            
+            for symbol in symbols:
+            
+                icon = QIcon(QPixmap.fromImage(self.tile_images[symbol]))
+                action = tilesToolBar.addAction(icon, str(symbol))
+                action.setData(QVariant(symbol))
+                action.setCheckable(True)
+                self.tileGroup.addAction(action)
+                action.triggered.connect(self.setCurrentTile)
     
     def setCurrentTile(self):
     
@@ -405,7 +498,8 @@ class EditorWindow(QMainWindow):
         
         if isinstance(self.repton, Repton2):
             self.levelWidget.setLevel(number, data, self.transporters,
-                                      self.destinations, self.puzzle)
+                                      self.destinations, self.puzzle,
+                                      self.piece_numbers)
         else:
             self.levelWidget.setLevel(number, data)
         
@@ -433,11 +527,9 @@ class EditorWindow(QMainWindow):
         levelSize = self.levelWidget.sizeHint()
         menuSize = self.menuBar().sizeHint()
         scrollBarSize = self.centralWidget().verticalScrollBar().size()
-        toolBarSize = self.tilesToolBar.size()
         
-        return QSize(max(levelSize.width(), menuSize.width(), toolBarSize.width()),
-                     levelSize.height() + menuSize.height() + \
-                     scrollBarSize.height() + toolBarSize.height())
+        return QSize(max(levelSize.width(), menuSize.width(), levelSize.width()),
+                     levelSize.height() + menuSize.height() + scrollBarSize.height())
 
 
 if __name__ == "__main__":
