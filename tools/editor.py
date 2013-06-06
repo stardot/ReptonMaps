@@ -251,8 +251,11 @@ class LevelWidget(QWidget):
         if not (0 <= r < 32 and 0 <= c < 32):
             return
         
-        # Do not allow spirits to be used on Screen A.
-        if tile == 75 and self.level_number == 1:
+        # Do not allow spirits to be used on Screen A or the finishing piece
+        # to be used on other screens.
+        if tile == 74 and self.level_number == 1:
+            return
+        elif tile == 9 and self.level_number != 1:
             return
         
         previous = self.level[r][c]
