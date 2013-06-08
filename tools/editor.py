@@ -30,6 +30,60 @@ import UEFfile
 
 __version__ = "0.1"
 
+class DataDict(QObject):
+
+    updated = pyqtSignal()
+    
+    def __init__(self, container, parent = None):
+    
+        QObject.__init__(self, parent)
+        
+        # Since the dictionary may contain dictionaries as values, and we want
+        # to know when they are updated, wrap them in DataDict objects and
+        # connect their updated signals to the one in this object.
+        
+        for key, value in container.items():
+            if type(value) == dict:
+                wrapper = DataDict(value)
+                wrapper.updated.connect(self.updated.emit)
+                container[key] = wrapper
+        
+        self.container = container
+    
+    def __getitem__(self, key):
+    
+        return self.container[key]
+    
+    def __setitem__(self, key, value):
+    
+        self.container[key] = value
+        self.updated.emit()
+    
+    def __delitem__(self, key):
+    
+        del self.container[key]
+        self.updated.emit()
+    
+    def __contains__(self, key):
+    
+        return key in self.container
+    
+    def has_key(self, key):
+    
+        return self.container.has_key(key)
+    
+    def keys(self):
+    
+        return self.container.keys()
+    
+    def values(self):
+    
+        return self.container.values()
+    
+    def items(self):
+    
+        return self.container.items()
+
 class LevelWidget(QWidget):
 
     destinationRequested = pyqtSignal(int, int, int)
@@ -71,7 +125,7 @@ class LevelWidget(QWidget):
         
         self.loadImages()
         self.loadLevels()
-        
+    
     def loadImages(self):
     
         self.tile_images = []
@@ -90,8 +144,10 @@ class LevelWidget(QWidget):
         
         if isinstance(self.repton, Repton2):
         
-            self.transporters, self.destinations = repton.read_transporter_defs()
-            self.puzzle, self.piece_numbers = repton.read_puzzle_defs()
+            transporters, self.destinations = repton.read_transporter_defs()
+            self.transporters = DataDict(transporters)
+            self.puzzle, piece_numbers = repton.read_puzzle_defs()
+            self.piece_numbers = DataDict(piece_numbers)
     
     def setTileImages(self, tile_images):
     
@@ -206,6 +262,16 @@ class LevelWidget(QWidget):
             menu = QMenu(self.tr("Destination"))
             goAction = menu.addAction(self.tr("Go to transporter"))
         
+        elif (c, r) in self.puzzle[self.level_number - 1]:
+            number, destination = self.puzzle[self.level_number - 1][(c, r)]
+            
+            menu = QMenu(self.tr("Puzzle"))
+            goAction = menu.addAction(self.tr("Go to destination"))
+            screen = 0
+            x = 8 + (destination % 16)
+            y = 24 + (destination / 16)
+            print destination, x, y
+        
         else:
             event.ignore()
             return
@@ -269,6 +335,11 @@ class LevelWidget(QWidget):
         else:
             return 74
     
+    def updateCell(self, c, r):
+    
+        self.update(QRect(self._x_from_column(c), self._y_from_row(r),
+              self.tw * self.xs, self.th * self.ys))
+    
     def writeTile(self, c, r, tile):
     
         if not (0 <= r < 32 and 0 <= c < 32):
@@ -283,7 +354,11 @@ class LevelWidget(QWidget):
         
         previous = self.levels[self.level_number - 1][r][c]
         
-        tw = self.tw * self.xs
+        old_highlight = self.highlight
+        self.highlight = (c, r)
+        
+        if old_highlight:
+            self.updateCell(old_highlight[0], old_highlight[1])
         
         if previous == 2:
         
@@ -300,12 +375,6 @@ class LevelWidget(QWidget):
                 dest_screen, (x, y) = self.transporters[self.level_number - 1][(c, r)]
                 del self.transporters[self.level_number - 1][(c, r)]
                 del self.destinations[dest_screen][(x, y)]
-                
-                if dest_screen == self.level_number - 1 and self.highlight == (x, y):
-                
-                    self.highlight = None
-                    self.update(QRect(self._x_from_column(x), self._y_from_row(y),
-                          tw, self.th * self.ys))
             
             elif 32 <= actual_previous < 74:
             
@@ -365,9 +434,61 @@ class LevelWidget(QWidget):
             tile = 2
         
         self.levels[self.level_number - 1][r][c] = tile
+        self.updateCell(c, r)
+    
+    def setDestination(self, details):
+    
+        if not self.highlight:
+            return
         
-        self.update(QRect(self._x_from_column(c), self._y_from_row(r),
-                          tw, self.th * self.ys))
+        print details
+        screen, (x, y) = details
+        self.transporters[screen][(x, y)] = (self.level_number - 1, self.highlight)
+        self.destinations[self.level_number - 1][self.highlight] = (screen, (x, y))
+
+class TransporterWidget(QListWidget):
+
+    transporterSelected = pyqtSignal(tuple)
+    
+    def __init__(self, transporters, destinations, parent = None):
+    
+        QListWidget.__init__(self, parent)
+        self.transporters = transporters
+        self.destinations = destinations
+        
+        metrics = QFontMetrics(self.font())
+        self.width = metrics.width("X (XX,XX)")
+        self.height = 256
+        
+        self.transporters.updated.connect(self.updateData)
+        self.itemDoubleClicked.connect(self.setDestination)
+        
+        self.setLayout(QVBoxLayout())
+        self.updateData()
+    
+    def updateData(self):
+    
+        transporters = self.transporters.items()
+        transporters.sort()
+        
+        self.clear()
+        
+        for screen, defs in transporters:
+        
+            for (x, y), (dest_screen, (dest_x, dest_y)) in defs.items():
+            
+                if (x, y) == (dest_x, dest_y):
+                    item = QListWidgetItem(self.tr("%1 (%2,%3)").arg(chr(65+screen)).arg(x).arg(y))
+                    item.details = (dest_screen, (dest_x, dest_y))
+                    self.addItem(item)
+    
+    def setDestination(self, item):
+    
+        self.transporterSelected.emit(item.details)
+    
+    def sizeHint(self):
+    
+        return QSize(self.width, self.height)
 
 class EditorWindow(QMainWindow):
 
@@ -393,8 +514,9 @@ class EditorWindow(QMainWindow):
         self.levelWidget.destinationRequested.connect(self.goToDestination)
         self.levelWidget.puzzlePieceMoved.connect(self.updatePuzzleTiles)
         
-        self.createMenus()
+        self.createDocks()
         self.createToolBars()
+        self.createMenus()
         
         # Select the first tile in the tiles toolbar and the first level in the
         # levels menu.
@@ -447,6 +569,43 @@ class EditorWindow(QMainWindow):
         except UEFfile.UEFfile_error:
             return False
     
+    def createDocks(self):
+    
+        if isinstance(self.repton, Repton):
+            return
+        
+        self.transporterDock = QDockWidget(self.tr("Transporters"))
+        
+        transporterWidget = TransporterWidget(self.levelWidget.transporters,
+                                              self.levelWidget.destinations)
+        transporterWidget.transporterSelected.connect(self.levelWidget.setDestination)
+        
+        self.transporterDock.setWidget(transporterWidget)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.transporterDock)
+        self.transporterDock.hide()
+    
+    def createToolBars(self):
+    
+        self.tileGroup = QActionGroup(self)
+        
+        # 32 tiles + 42 puzzle pieces + 1 spirit = 75
+        
+        for symbols in [range(0, 32) + [74], range(32, 74)]:
+        
+            tilesToolBar = self.addToolBar(self.tr("Tiles"))
+            
+            for symbol in symbols:
+            
+                if 32 <= symbol < 74:
+                    icon = self.puzzleIcon(symbol)
+                else:
+                    icon = QIcon(QPixmap.fromImage(self.levelWidget.tile_images[symbol]))
+                action = tilesToolBar.addAction(icon, str(symbol))
+                action.setData(QVariant(symbol))
+                action.setCheckable(True)
+                self.tileGroup.addAction(action)
+                action.triggered.connect(self.setCurrentTile)
+    
     def createMenus(self):
     
         fileMenu = self.menuBar().addMenu(self.tr("&File"))
@@ -477,27 +636,14 @@ class EditorWindow(QMainWindow):
         
         levelsMenu.triggered.connect(self.selectLevel)
     
-    def createToolBars(self):
-    
-        self.tileGroup = QActionGroup(self)
+        if isinstance(self.repton, Repton2):
         
-        # 32 tiles + 42 puzzle pieces + 1 spirit = 75
-        
-        for symbols in [range(0, 32) + [74], range(32, 74)]:
-        
-            tilesToolBar = self.addToolBar(self.tr("Tiles"))
-            
-            for symbol in symbols:
-            
-                if 32 <= symbol < 74:
-                    icon = self.puzzleIcon(symbol)
-                else:
-                    icon = QIcon(QPixmap.fromImage(self.levelWidget.tile_images[symbol]))
-                action = tilesToolBar.addAction(icon, str(symbol))
-                action.setData(QVariant(symbol))
-                action.setCheckable(True)
-                self.tileGroup.addAction(action)
-                action.triggered.connect(self.setCurrentTile)
+            dockMenu = self.menuBar().addMenu(self.tr("&Palettes"))
+            transporterDockAction = dockMenu.addAction(self.tr("&Transporters"))
+            transporterDockAction.setCheckable(True)
+            transporterDockAction.setChecked(self.transporterDock.isVisible())
+            transporterDockAction.toggled.connect(self.transporterDock.setVisible)
+            self.transporterDock.visibilityChanged.connect(transporterDockAction.setChecked)
     
     def setCurrentTile(self):
     
