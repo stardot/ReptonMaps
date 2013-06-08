@@ -146,8 +146,7 @@ class LevelWidget(QWidget):
         
             transporters, self.destinations = repton.read_transporter_defs()
             self.transporters = DataDict(transporters)
-            self.puzzle, piece_numbers = repton.read_puzzle_defs()
-            self.piece_numbers = DataDict(piece_numbers)
+            self.puzzle, self.piece_numbers = repton.read_puzzle_defs()
     
     def setTileImages(self, tile_images):
     
@@ -282,6 +281,9 @@ class LevelWidget(QWidget):
     
     def updateCursor(self, event):
     
+        if isinstance(self.repton, Repton):
+            return
+        
         r, c = self._row_from_y(event.y()), self._column_from_x(event.x())
         if (c, r) in self.transporters[self.level_number - 1]:
             self.setCursor(Qt.PointingHandCursor)
@@ -441,7 +443,6 @@ class LevelWidget(QWidget):
         if not self.highlight:
             return
         
-        print details
         screen, (x, y) = details
         self.transporters[screen][(x, y)] = (self.level_number - 1, self.highlight)
         self.destinations[self.level_number - 1][self.highlight] = (screen, (x, y))
@@ -522,7 +523,9 @@ class EditorWindow(QMainWindow):
         # levels menu.
         self.tileGroup.actions()[0].trigger()
         self.levelsGroup.actions()[0].trigger()
-        self.levelWidget.highlight = (16, 7)
+        
+        if isinstance(self.repton, Repton2):
+            self.levelWidget.highlight = (16, 7)
         
         area = QScrollArea()
         area.setWidget(self.levelWidget)
@@ -588,9 +591,13 @@ class EditorWindow(QMainWindow):
     
         self.tileGroup = QActionGroup(self)
         
-        # 32 tiles + 42 puzzle pieces + 1 spirit = 75
+        if isinstance(self.repton, Repton):
+            collection = [range(0, 32)]
+        else:
+            # 32 tiles + 42 puzzle pieces + 1 spirit = 75
+            collection = [range(0, 32) + [74], range(32, 74)]
         
-        for symbols in [range(0, 32) + [74], range(32, 74)]:
+        for symbols in collection:
         
             tilesToolBar = self.addToolBar(self.tr("Tiles"))
             

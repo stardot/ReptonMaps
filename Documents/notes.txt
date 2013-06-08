@@ -170,3 +170,18 @@ earlier in the file, possible from 0x1b00 to 0x1c1f.
 
 This appears to work well, except that the transporter sprite is defined as
 tile 11 and tile 2 is used to represent transporters in the level data.
+
+Totals
+======
+
+The total number of earth tiles is stored in two bytes at 0x102f and 0x1034 as
+part of a routine. The values are encoded as binary coded decimal with the
+lowest first.
+
+The total number of diamonds is stored in 0x1025 and 0x102a.
+Total monsters is at 0x1020, transporters at 0x0164, puzzle pieces at 0x132.
+
+Start position
+==============
+
+This is stored at 0x1060 (x) and 0x1064 (y).

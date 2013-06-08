@@ -187,6 +187,7 @@ class Repton2:
         puzzle_address = 0x1da0
         pieces = {}
         piece_numbers = {}
+        self.piece_destinations = {}
         
         # Initialise dictionaries for each screen.
         for screen in range(16):
@@ -201,6 +202,7 @@ class Repton2:
             screen, x, y, destination = map(ord, self.data[i:i+4])
             pieces[screen][(x, y)] = (number, destination)
             piece_numbers[number] = (screen, (x, y))
+            self.piece_destinations[number] = destination
             
             number += 1
             i += 4
@@ -224,7 +226,7 @@ class Repton2:
             for (x, y), (number, destination) in defs.items():
             
                 # Remember that we gave these pieces tile numbers from 32.
-                pieces[number] = (screen, x, y, destination)
+                pieces[number] = (screen, x, y, self.piece_destinations[number])
         
         for i in range(42):
             try:
