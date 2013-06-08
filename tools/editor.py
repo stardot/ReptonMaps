@@ -250,16 +250,21 @@ class LevelWidget(QWidget):
         
         r, c = self._row_from_y(event.y()), self._column_from_x(event.x())
         if (c, r) in self.transporters[self.level_number - 1]:
+        
             screen, (x, y) = self.transporters[self.level_number - 1][(c, r)]
             
             menu = QMenu(self.tr("Transporter"))
             goAction = menu.addAction(self.tr("Go to destination"))
+            goAction.details = (screen, (x, y))
         
         elif (c, r) in self.destinations[self.level_number - 1]:
-            screen, (x, y) = self.destinations[self.level_number - 1][(c, r)]
-
+        
             menu = QMenu(self.tr("Destination"))
-            goAction = menu.addAction(self.tr("Go to transporter"))
+            
+            for screen, (x, y) in self.destinations[self.level_number - 1][(c, r)]:
+            
+                goAction = menu.addAction(self.tr("Go to transporter: %1 (%2,%3)").arg(chr(65+screen)).arg(x).arg(y))
+                goAction.details = (screen, (x, y))
         
         elif (c, r) in self.puzzle[self.level_number - 1]:
             number, destination = self.puzzle[self.level_number - 1][(c, r)]
@@ -269,13 +274,15 @@ class LevelWidget(QWidget):
             screen = 0
             x = 8 + (destination % 16)
             y = 24 + (destination / 16)
-            print destination, x, y
+            goAction.details = (screen, (x, y))
         
         else:
             event.ignore()
             return
         
-        if menu.exec_(event.globalPos()) == goAction:
+        action = menu.exec_(event.globalPos())
+        if action:
+            screen, (x, y) = action.details
             self.destinationRequested.emit(screen + 1, x, y)
             self.highlight = (x, y)
     
@@ -376,7 +383,11 @@ class LevelWidget(QWidget):
                 # Remove the transporter entry at this location.
                 dest_screen, (x, y) = self.transporters[self.level_number - 1][(c, r)]
                 del self.transporters[self.level_number - 1][(c, r)]
-                del self.destinations[dest_screen][(x, y)]
+                self.destinations[dest_screen][(x, y)].remove((self.level_number - 1, (c, r)))
+                
+                # Remove the set for this entry if it is empty.
+                if not self.destinations[dest_screen][(x, y)]:
+                    del self.destinations[dest_screen][(x, y)]
             
             elif 32 <= actual_previous < 74:
             
@@ -392,7 +403,8 @@ class LevelWidget(QWidget):
             # Create a new transporter entry. The new transporter's
             # destination is its own location.
             self.transporters[self.level_number - 1][(c, r)] = (self.level_number - 1, (c, r))
-            self.destinations[self.level_number - 1][(c, r)] = (self.level_number - 1, (c, r))
+            s = self.destinations[self.level_number - 1].setdefault((c, r), set())
+            s.add((self.level_number - 1, (c, r)))
             
             # Insert tile 2 instead.
             tile = 2
@@ -445,7 +457,7 @@ class LevelWidget(QWidget):
         
         screen, (x, y) = details
         self.transporters[screen][(x, y)] = (self.level_number - 1, self.highlight)
-        self.destinations[self.level_number - 1][self.highlight] = (screen, (x, y))
+        self.destinations[self.level_number - 1][self.highlight].add((screen, (x, y)))
 
 class TransporterWidget(QListWidget):
 
@@ -461,7 +473,11 @@ class TransporterWidget(QListWidget):
         self.width = metrics.width("X (XX,XX)")
         self.height = 256
         
-        self.transporters.updated.connect(self.updateData)
+        self.updateDelayTimer = QTimer()
+        self.updateDelayTimer.setInterval(200)
+        
+        self.transporters.updated.connect(self.updateDelayTimer.start)
+        self.updateDelayTimer.timeout.connect(self.updateData)
         self.itemDoubleClicked.connect(self.setDestination)
         
         self.setLayout(QVBoxLayout())
@@ -469,6 +485,8 @@ class TransporterWidget(QListWidget):
     
     def updateData(self):
     
+        self.updateDelayTimer.stop()
+        
         transporters = self.transporters.items()
         transporters.sort()
         

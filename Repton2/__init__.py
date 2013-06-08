@@ -173,10 +173,9 @@ class Repton2:
             src_screen, src_x, src_y = map(ord, self.data[i:i+3])
             dest_screen, dest_x, dest_y = map(ord, self.data[i+3:i+6])
             
-            transporters.setdefault(src_screen, {})[(src_x, src_y)] = \
+            transporters[src_screen][(src_x, src_y)] = \
                 dest_screen, (dest_x, dest_y)
-            destinations.setdefault(dest_screen, {})[(dest_x, dest_y)] = \
-                src_screen, (src_x, src_y)
+            destinations[dest_screen].setdefault((dest_x, dest_y), set()).add((src_screen, (src_x, src_y)))
             
             i += 6
         
