@@ -199,7 +199,8 @@ The skulls at the top of Screen A disappear when certain totals reach zero and
 Repton visits the status character. The first skull and its counterpart below
 disappear when all monsters have been killed, the second when all diamonds are
 collected, the third when all earth is collected, the fourth when all
-transporters have been used,
+transporters have been used, and the fifth when there is only one puzzle piece
+left to collect.
 
 Score
 =====
