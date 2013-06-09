@@ -187,6 +187,13 @@ lowest first.
 The total number of diamonds is stored in 0x1025 and 0x102a.
 Total monsters is at 0x1020, transporters at 0x0164, puzzle pieces at 0x132.
 
+The monsters, earth and diamonds totals are stored in locations from 0x0be0 to
+0x0be4.
+
+Looking at the code from 0x132 to 0x14b, it appears that the running total for
+the puzzle pieces is stored at 0x0b81. Similarly, at 0x18b, the running total
+for the transporters is stored at 0x0b80.
+
 Start position
 ==============
 
@@ -201,6 +208,19 @@ disappear when all monsters have been killed, the second when all diamonds are
 collected, the third when all earth is collected, the fourth when all
 transporters have been used, and the fifth when there is only one puzzle piece
 left to collect.
+
+The start of the file appears to contain code to check the values from 0x0be0
+to 0x0be4 (the monsters, earth and diamonds totals). The code at 0x132 which
+includes the puzzle piece total, appears to read the table at 0x1da0 (0x29a0).
+
+Later, at 0x19c, the totals are checked and a value of 2 written to the
+addresses, 0x421, 0x4a1, 0x423, 0x4a3, 0x424 and 0x4a5.
+
+The puzzle piece and transporter totals are checked at 0x1cd and 0x1dc, and
+a value of 2 written to 0x429, 0x4a9, 0x427 and 0x4a7 as a result.
+
+This may mean that the working level, or persistent Screen A, is stored at
+0x420 or thereabouts.
 
 Score
 =====
