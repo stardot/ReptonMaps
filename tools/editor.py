@@ -457,7 +457,8 @@ class LevelWidget(QWidget):
         
         screen, (x, y) = details
         self.transporters[screen][(x, y)] = (self.level_number - 1, self.highlight)
-        self.destinations[self.level_number - 1][self.highlight].add((screen, (x, y)))
+        s = self.destinations[self.level_number - 1].setdefault(self.highlight, set())
+        s.add((screen, (x, y)))
 
 class TransporterWidget(QListWidget):
 

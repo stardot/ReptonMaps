@@ -1,3 +1,6 @@
+Repton
+======
+
 Repton levels appear to be maps of 32 row by 32 columns.
 
 The level data was found by loading the REPTON2 file into memory in MODE 5
@@ -59,6 +62,9 @@ Sprites are stored at 0x2500 in the REPTON2 file and are 8 by 16 pixels. See
 the table in the sprites module of the Repton package for the offsets into the
 sprite data.
 
+
+Repton2
+=======
 
 Repton 2 levels appear to start at 0x2e00 and encode the data in rows of 20
 bytes (5 bits per cell again).
@@ -185,3 +191,97 @@ Start position
 ==============
 
 This is stored at 0x1060 (x) and 0x1064 (y).
+
+Skulls
+======
+
+The skulls at the top of Screen A disappear when certain totals reach zero and
+Repton visits the status character. The first skull and its counterpart below
+disappear when all monsters have been killed, the second when all diamonds are
+collected, the third when all earth is collected, the fourth when all
+transporters have been used,
+
+Score
+=====
+
+Diamond         6
+Earth   (cross) 3
+        (tl/br) 4
+        (tr/bl) 5
+Monster         0
+Transporter     0
+Puzzle piece    0
+
+Palette
+=======
+
+At 0x394, there is the start of a VDU 19 sequence. This appears to split bytes
+obtained from zero page into the two logical and physical colour values, with
+the top four bits as the logical value and the lower four as the physical value.
+
+The subroutine appears to start at 0x392:
+
+    sta $00         ; 85 00
+    lda #$13        ; A9 13
+    jsr $ffee       ; 20 EE FF      ; VDU 19,
+    lda $00         ; A5 00
+    lsr lsr lsr lsr ; 4A 4A 4A 4A
+    jsr $ffee       ; 20 EE FF      ; l,
+    lda $00         ; A5 00
+    and $0f         ; 29 0F
+    jsr $ffee       ; 20 EE FF      ; p,
+    lda #0          ; A9 00
+    jsr $ffee       ; 20 EE FF      ; 0,
+    jsr $ffee       ; 20 EE FF      ; 0
+    jmp $ffee       ; 4C EE FF      ; 0 (and return via VDU)
+
+The routine is located in the Electron's memory at 0xc00 + 0x392 = 0xf92. This
+is called from 0x100e (0x1c0e) and 0x1074 (0x1c74).
+
+The call at 0x100e sets the third colour to green (2) when the game loads.
+The call at 0x1074 sets it when the game starts.
+
+There are calls at 0x2888 and 0x2894, which appear to set two colours using the
+routine at 0x392 (0xf92). The routine starting at 0x2888 (0x3488) is called
+from 0x107f. The code leading up to this is mentioned above (setting colour 3)
+and is followed by
+
+    lda $8b         ; A5 8B
+    and #$03        ; 29 03
+    tax             ; AA
+    lda $0f43,x     ; BD 43 0F  ; loads the value from 0x343 (0xf43)
+    jsr $3488       ; 20 88 34  ; jumps to the routine at 0x2888 (0x3488)
+
+The routine at 0x2888 is:
+
+    jsr $0f92       ; 20 92 0F
+    ldx $a6         ; A6 8B
+    cpx #$02        ; E0 02
+    bcs #$06        ; B0 06     -> rts
+    lda $35c0,x     ; BD C0 35  ; 0x29c0 (0x35c0)
+    jsr $0f92       ; 20 92 0F
+    rts             ; 60
+
+At 0x29c0, there are some two values which are followed by a routine starting
+at 0x29c2. These two values appear to control the colours of the first two
+screens.
+
+Memory layout
+=============
+
+Offsets             Description
+0x1da0-0x1e48       Puzzle piece locations
+0x1e50-0x1fcf       Transporter definitions
+0x1fd0-0x1fff       ...
+0x2000-0x203f       Screen area definitions
+0x2040-0x233f       Text character sprite definitions
+0x2340-0x273f       Game sprites
+0x2740-0x2757       ?
+0x2758-0x287f       Game sprites
+0x2880-0x2897       ?
+0x2898-0x29bf       Game sprites
+0x29c0-0x29d7       ?
+0x29d8-0x2a87       Game sprites
+0x2a88-0x2a97       ?
+0x2a98-0x2dff       Game sprites
+0x2e00-0x4bff       Level definitions

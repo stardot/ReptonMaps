@@ -47,6 +47,8 @@ class Repton2:
                       (0,255,0), (0,255,0), (0,255,0), (0,255,255),
                       (0,255,0), (0,255,0), (0,255,0), (0,255,255)]
     
+    scores = {3: 3, 4: 4, 5: 5, 6: 6}
+    
     def __init__(self, uef_file):
     
         self.uef = UEFfile.UEFfile(uef_file)
