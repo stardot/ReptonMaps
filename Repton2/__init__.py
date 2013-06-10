@@ -216,9 +216,87 @@ class Repton2:
         repton_colour = self.repton_colours[level - 1]
         return [(0,0,0), wall_colour, (255,255,0), repton_colour]
     
-    def write_levels(self, levels, transporters, puzzle_pieces):
+    def recalculateTotals(self, levels, transporters, pieces):
     
-        data = self.uef.contents[self.file_number]["data"][:0x1da0]
+        diamonds = 0
+        earth = 0
+        monsters = 0
+        transporters_total = 0
+        
+        for i in range(len(levels)):
+        
+            level = levels[i]
+            
+            safes = 0
+            spirits = 0
+            cages = 0
+            keys = 0
+            
+            for row in level:
+                for cell in row:
+                
+                    if 3 <= cell <= 5:
+                        earth += 1
+                    elif cell == 6:
+                        diamonds += 1
+                    elif cell == 15:
+                        monsters += 1
+                    elif cell == 7:
+                        keys += 1
+                    elif cell == 9:
+                        spirits += 1
+                    elif cell == 12:
+                        cages += 1
+                    elif cell == 13:
+                        safes += 1
+            
+            if keys > 0:
+                diamonds += safes
+            if i != 0:
+                diamonds += min(spirits, cages)
+        
+        for screen, defs in transporters.items():
+        
+            transporters_total += len(defs)
+        
+        return diamonds, earth, monsters, transporters_total, len(pieces)
+    
+    def write_levels(self, levels, transporters, puzzle_pieces, totals,
+                     total_special = False):
+    
+        old_data = self.uef.contents[self.file_number]["data"]
+        
+        data = old_data[:0x132]
+        data += self.bcd(totals[4])          # puzzle pieces
+        data += old_data[0x133:0x164]
+        data += self.bcd(totals[3])          # transporters
+        data += old_data[0x165:0x1a7]
+        
+        if total_special:
+            data += old_data[0x1a7:0x1e9]
+        else:
+            # Remove the code to wipe the skulls on Screen A.
+            data += "\xea"*6
+            data += old_data[0x1ad:0x1b7]
+            data += "\xea"*6
+            data += old_data[0x1bd:0x1c7]
+            data += "\xea"*6
+            data += old_data[0x1cd:0x1d6]
+            data += "\xea"*6
+            data += old_data[0x1dc:0x1e3]
+            data += "\xea"*6
+        
+        data += old_data[0x1e9:0x1020]
+        data += self.bcd(totals[2])          # monsters
+        data += old_data[0x1021:0x1025]
+        data += self.bcd(totals[0] % 100)    # diamonds (lowest digits)
+        data += old_data[0x1026:0x102a]
+        data += self.bcd(totals[0] / 100)    # diamonds (highest digits)
+        data += old_data[0x102b:0x102f]
+        data += self.bcd(totals[1] % 100)    # earth (lowest digits)
+        data += old_data[0x1030:0x1034]
+        data += self.bcd(totals[1] / 100)    # earth (highest digits)
+        data += old_data[0x1035:0x1da0]
         
         pieces = {}
         
@@ -244,6 +322,8 @@ class Repton2:
             
                 data += "".join(map(chr, (screen, x, y, dest_screen, dest_x, dest_y)))
         
+        # If there are no transporters then the following will result in a
+        # single transporter at the top-left of Screen A.
         data += (0x2000 - len(data))*"\x00"
         
         # Level area definitions
@@ -284,10 +364,10 @@ class Repton2:
         data += "".join(map(chr, areas))
         
         # Text character definitions
-        data += self.uef.contents[self.file_number]["data"][0x2040:0x2340]
+        data += old_data[0x2040:0x2340]
         
         # Sprite definitions
-        data += self.uef.contents[self.file_number]["data"][0x2340:0x2e00]
+        data += old_data[0x2340:0x2e00]
         
         # Level definitions
         next = 0
@@ -324,3 +404,9 @@ class Repton2:
                         offset -= 8
         
         self.uef.contents[self.file_number]["data"] = data
+    
+    def bcd(self, value):
+    
+        low = value % 10
+        high = (value / 10) * 16
+        return chr(low | high)

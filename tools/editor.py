@@ -19,7 +19,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import os, sys
+import os, shelve, sys
 
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
@@ -38,6 +38,10 @@ class DataDict(QObject):
     
         QObject.__init__(self, parent)
         
+        self.setContainer(container)
+    
+    def setContainer(self, container):
+    
         # Since the dictionary may contain dictionaries as values, and we want
         # to know when they are updated, wrap them in DataDict objects and
         # connect their updated signals to the one in this object.
@@ -83,6 +87,25 @@ class DataDict(QObject):
     def items(self):
     
         return self.container.items()
+    
+    def setdefault(self, key, default):
+    
+        return self.container.setdefault(key, default)
+    
+    def __len__(self):
+    
+        return len(self.container)
+    
+    def export(self):
+    
+        d = {}
+        for key, value in self.container.items():
+        
+            if isinstance(value, DataDict):
+                value = value.export()
+            d[key] = value
+        return d
+
 
 class LevelWidget(QWidget):
 
@@ -144,8 +167,9 @@ class LevelWidget(QWidget):
         
         if isinstance(self.repton, Repton2):
         
-            transporters, self.destinations = repton.read_transporter_defs()
+            transporters, destinations = repton.read_transporter_defs()
             self.transporters = DataDict(transporters)
+            self.destinations = DataDict(destinations)
             self.puzzle, self.piece_numbers = repton.read_puzzle_defs()
     
     def setTileImages(self, tile_images):
@@ -157,7 +181,7 @@ class LevelWidget(QWidget):
         for row in range(32):
             for column in range(32):
                 self.writeTile(column, row, self.currentTile)
-                
+    
     def setLevel(self, number):
     
         self.level_number = number
@@ -165,6 +189,14 @@ class LevelWidget(QWidget):
         
         if isinstance(self.repton, Repton):
             self.highlight = (4, 4)
+        else:
+            # Some transporters are not stored on the map. Adjust the level
+            # data to make them visible.
+            for row in range(32):
+                for column in range(32):
+                    if (column, row) in self.transporters[self.level_number - 1] \
+                      and self.levels[self.level_number - 1][row][column] != 2:
+                        self.levels[self.level_number - 1][row][column] = 2
         
         self.update()
     
@@ -460,7 +492,8 @@ class LevelWidget(QWidget):
         s = self.destinations[self.level_number - 1].setdefault(self.highlight, set())
         s.add((screen, (x, y)))
 
-class TransporterWidget(QListWidget):
+
+class TransportersWidget(QListWidget):
 
     transporterSelected = pyqtSignal(tuple)
     
@@ -509,6 +542,72 @@ class TransporterWidget(QListWidget):
     def sizeHint(self):
     
         return QSize(self.width, self.height)
+
+
+class TotalsWidget(QWidget):
+
+    def __init__(self, levelWidget, parent = None):
+    
+        QWidget.__init__(self, parent)
+        
+        self.levelWidget = levelWidget
+        self.calculated = False
+        
+        self.diamondsEdit = QSpinBox()
+        self.diamondsEdit.setMaximum(9999)
+        self.earthEdit = QSpinBox()
+        self.earthEdit.setMaximum(9999)
+        self.monstersEdit = QSpinBox()
+        self.monstersEdit.setMaximum(99)
+        self.transportersEdit = QSpinBox()
+        self.transportersEdit.setMaximum(99)
+        self.puzzleEdit = QSpinBox()
+        self.puzzleEdit.setMaximum(42)
+        
+        recalcButton = QPushButton(self.tr("&Recalculate"))
+        recalcButton.clicked.connect(self.recalculateTotals)
+        
+        layout = QVBoxLayout(self)
+        
+        form = QFormLayout()
+        form.addRow(self.tr("&Diamonds:"), self.diamondsEdit)
+        form.addRow(self.tr("&Earth:"), self.earthEdit)
+        form.addRow(self.tr("&Monsters:"), self.monstersEdit)
+        form.addRow(self.tr("&Transporters:"), self.transportersEdit)
+        layout.addLayout(form)
+        
+        layout.addWidget(recalcButton)
+        layout.addStretch(1)
+    
+    def recalculateTotals(self):
+    
+        totals = self.levelWidget.repton.recalculateTotals(
+            self.levelWidget.levels, self.levelWidget.transporters,
+            self.levelWidget.piece_numbers)
+        
+        self.setTotals(totals)
+    
+    def totals(self):
+    
+        if not self.calculated:
+            self.recalculateTotals()
+        
+        return (self.diamondsEdit.value(), self.earthEdit.value(),
+                self.monstersEdit.value(), self.transportersEdit.value(),
+                self.puzzleEdit.value())
+    
+    def setTotals(self, totals):
+    
+        diamonds, earth, monsters, transporters, pieces = totals
+        
+        self.diamondsEdit.setValue(diamonds)
+        self.earthEdit.setValue(earth)
+        self.monstersEdit.setValue(monsters)
+        self.transportersEdit.setValue(transporters)
+        self.puzzleEdit.setValue(pieces)
+        
+        self.calculated = True
+
 
 class EditorWindow(QMainWindow):
 
@@ -568,10 +667,15 @@ class EditorWindow(QMainWindow):
         # Write the levels back to the UEF file.
         if isinstance(self.repton, Repton):
             self.repton.write_levels(self.levelWidget.levels)
+        
         elif isinstance(self.repton, Repton2):
+        
+            totals = self.totalsDock.widget().totals()
+            
             self.repton.write_levels(self.levelWidget.levels,
                                      self.levelWidget.transporters,
-                                     self.levelWidget.puzzle)
+                                     self.levelWidget.puzzle,
+                                     totals)
         else:
             return
         
@@ -591,20 +695,77 @@ class EditorWindow(QMainWindow):
         except UEFfile.UEFfile_error:
             return False
     
+    def importAs(self):
+    
+        path = QFileDialog.getOpenFileName(self, self.tr("Import File"),
+                                           self.path, self.tr("Level files (*.lev)"))
+        if path.isEmpty():
+            return
+        
+        try:
+            d = shelve.open(unicode(path))
+            self.levelWidget.levels = d["levels"]
+            
+            if isinstance(self.repton, Repton2):
+            
+                self.levelWidget.transporters.setContainer(d["transporters"])
+                self.levelWidget.destinations.setContainer(d["destinations"])
+                self.levelWidget.puzzle = d["puzzle"]
+                self.levelWidget.piece_numbers = d["piece numbers"]
+                self.totalsDock.widget().setTotals(d["totals"])
+            
+            d.close()
+        
+        except IOError:
+            QMessageBox.warning(self, self.tr("Import Levels"),
+                self.tr("Couldn't read the level data from %1.\n").arg(path))
+    
+    def exportAs(self):
+    
+        path = QFileDialog.getSaveFileName(self, self.tr("Export As"),
+                                           self.path, self.tr("Level files (*.lev)"))
+        if path.isEmpty():
+            return
+        
+        try:
+            d = shelve.open(unicode(path))
+            d["levels"] = self.levelWidget.levels
+            
+            if isinstance(self.repton, Repton2):
+            
+                d["transporters"] = self.levelWidget.transporters.export()
+                d["destinations"] = self.levelWidget.destinations.export()
+                d["puzzle"] = self.levelWidget.puzzle
+                d["piece numbers"] = self.levelWidget.piece_numbers
+                d["totals"] = self.totalsDock.widget().totals()
+            
+            d.close()
+        
+        except IOError:
+            QMessageBox.warning(self, self.tr("Export Levels"),
+                self.tr("Couldn't write the level data to %1.\n").arg(path))
+    
     def createDocks(self):
     
         if isinstance(self.repton, Repton):
             return
         
-        self.transporterDock = QDockWidget(self.tr("Transporters"))
+        self.transportersDock = QDockWidget(self.tr("Transporters"))
         
-        transporterWidget = TransporterWidget(self.levelWidget.transporters,
-                                              self.levelWidget.destinations)
-        transporterWidget.transporterSelected.connect(self.levelWidget.setDestination)
+        transportersWidget = TransportersWidget(self.levelWidget.transporters,
+                                                self.levelWidget.destinations)
+        transportersWidget.transporterSelected.connect(self.levelWidget.setDestination)
         
-        self.transporterDock.setWidget(transporterWidget)
-        self.addDockWidget(Qt.LeftDockWidgetArea, self.transporterDock)
-        self.transporterDock.hide()
+        self.transportersDock.setWidget(transportersWidget)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.transportersDock)
+        self.transportersDock.hide()
+        
+        self.totalsDock = QDockWidget(self.tr("Totals"))
+        totalsWidget = TotalsWidget(self.levelWidget)
+        
+        self.totalsDock.setWidget(totalsWidget)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.totalsDock)
+        self.totalsDock.hide()
     
     def createToolBars(self):
     
@@ -643,6 +804,12 @@ class EditorWindow(QMainWindow):
         saveAsAction.setShortcut(QKeySequence.SaveAs)
         saveAsAction.triggered.connect(self.saveAs)
         
+        importAsAction = fileMenu.addAction(self.tr("Import Levels..."))
+        importAsAction.triggered.connect(self.importAs)
+        
+        exportAsAction = fileMenu.addAction(self.tr("Export As..."))
+        exportAsAction.triggered.connect(self.exportAs)
+        
         quitAction = fileMenu.addAction(self.tr("E&xit"))
         quitAction.setShortcut(self.tr("Ctrl+Q"))
         quitAction.triggered.connect(self.close)
@@ -665,11 +832,17 @@ class EditorWindow(QMainWindow):
         if isinstance(self.repton, Repton2):
         
             dockMenu = self.menuBar().addMenu(self.tr("&Palettes"))
-            transporterDockAction = dockMenu.addAction(self.tr("&Transporters"))
-            transporterDockAction.setCheckable(True)
-            transporterDockAction.setChecked(self.transporterDock.isVisible())
-            transporterDockAction.toggled.connect(self.transporterDock.setVisible)
-            self.transporterDock.visibilityChanged.connect(transporterDockAction.setChecked)
+            transportersDockAction = dockMenu.addAction(self.tr("&Transporters"))
+            transportersDockAction.setCheckable(True)
+            transportersDockAction.setChecked(self.transportersDock.isVisible())
+            transportersDockAction.toggled.connect(self.transportersDock.setVisible)
+            self.transportersDock.visibilityChanged.connect(transportersDockAction.setChecked)
+            
+            totalsDockAction = dockMenu.addAction(self.tr("&Totals"))
+            totalsDockAction.setCheckable(True)
+            totalsDockAction.setChecked(self.totalsDock.isVisible())
+            totalsDockAction.toggled.connect(self.totalsDock.setVisible)
+            self.totalsDock.visibilityChanged.connect(totalsDockAction.setChecked)
     
     def setCurrentTile(self):
     
