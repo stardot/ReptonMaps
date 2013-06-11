@@ -515,6 +515,7 @@ class TransportersWidget(QListWidget):
         self.itemDoubleClicked.connect(self.setDestination)
         
         self.setLayout(QVBoxLayout())
+        self.setToolTip(self.tr("Double click an item to set the transporter's destination."))
         self.updateData()
     
     def updateData(self):
