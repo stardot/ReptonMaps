@@ -403,6 +403,9 @@ class Repton2:
                         current = current >> 8
                         offset -= 8
         
+        # Fill the rest of the level data with null bytes.
+        data += (0x4c00 - len(data)) * "\x00"
+        
         self.uef.contents[self.file_number]["data"] = data
     
     def bcd(self, value):

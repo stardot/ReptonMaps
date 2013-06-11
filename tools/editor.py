@@ -586,6 +586,7 @@ class TotalsWidget(QWidget):
             self.levelWidget.piece_numbers)
         
         self.setTotals(totals)
+        self.calculated = True
     
     def totals(self):
     
@@ -605,8 +606,6 @@ class TotalsWidget(QWidget):
         self.monstersEdit.setValue(monsters)
         self.transportersEdit.setValue(transporters)
         self.puzzleEdit.setValue(pieces)
-        
-        self.calculated = True
 
 
 class EditorWindow(QMainWindow):
@@ -715,6 +714,8 @@ class EditorWindow(QMainWindow):
                 self.totalsDock.widget().setTotals(d["totals"])
             
             d.close()
+            
+            self.setLevel(1)
         
         except IOError:
             QMessageBox.warning(self, self.tr("Import Levels"),
@@ -773,13 +774,18 @@ class EditorWindow(QMainWindow):
         
         if isinstance(self.repton, Repton):
             collection = [range(0, 32)]
+            toolbar_areas = [Qt.TopToolBarArea]
+            titles = [self.tr("Tiles")]
         else:
             # 32 tiles + 42 puzzle pieces + 1 spirit = 75
             collection = [range(0, 32) + [74], range(32, 74)]
+            toolbar_areas = [Qt.TopToolBarArea, Qt.BottomToolBarArea]
+            titles = [self.tr("Tiles"), self.tr("Puzzle Pieces")]
         
-        for symbols in collection:
+        for symbols, area, title in zip(collection, toolbar_areas, titles):
         
-            tilesToolBar = self.addToolBar(self.tr("Tiles"))
+            tilesToolBar = QToolBar(title)
+            self.addToolBar(area, tilesToolBar)
             
             for symbol in symbols:
             
