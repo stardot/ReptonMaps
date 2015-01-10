@@ -1,5 +1,5 @@
-Repton
-======
+Repton (Electron Version)
+=========================
 
 Repton levels appear to be maps of 32 row by 32 columns.
 
@@ -306,3 +306,9 @@ Offsets             Description
 0x2a88-0x2a97       ?
 0x2a98-0x2dff       Game sprites
 0x2e00-0x4bff       Level definitions
+
+Repton (BBC Micro Version)
+==========================
+
+The last part of the REPTON2 file, from 0x5300 to 0x55ff, is the same as in the
+Electron version, from 0x4700 to 0x49ff.
