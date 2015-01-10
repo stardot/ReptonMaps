@@ -6,7 +6,7 @@ executable, stored in a Universal Emulator Format (UEF) file. This depends on
 the cross-platform PyQt4 GUI framework. This tool is typically run from the
 command line from within the ReptonMaps directory itself, like this:
 
-  ./tools/editor.py Repton.uef
+  PYTHONPATH=. ./tools/editor.py Repton.uef
 
 You will also need to provide a suitable Repton.uef file containing the files
 for the Acorn Electron version of Repton. This is not provided in this package.
