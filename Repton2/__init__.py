@@ -67,6 +67,8 @@ class Repton2:
         
         if len(self.data) != 0x4c00:
             raise IncorrectSize
+        
+        self.version = "Electron"
     
     def read_levels(self):
     
@@ -413,3 +415,21 @@ class Repton2:
         low = value % 10
         high = (value / 10) * 16
         return chr(low | high)
+    
+    def saveUEF(self, path, version):
+    
+        # Write the new UEF file.
+        u = UEFfile.UEFfile(creator = 'Repton Editor ' + version)
+        u.minor = 6
+        u.target_machine = "Electron"
+        
+        files = map(lambda x: (x["name"], x["load"], x["exec"], x["data"]),
+                    self.uef.contents)
+        
+        u.import_files(0, files, gap = True)
+        
+        try:
+            u.write(path, write_emulator_info = False)
+            return True
+        except UEFfile.UEFfile_error:
+            return False
