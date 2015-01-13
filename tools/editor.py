@@ -122,8 +122,12 @@ class LevelWidget(QWidget):
         self.th = repton.tile_height
         
         if isinstance(repton, Repton):
-            self.xs = 4
-            self.ys = 2
+            if self.repton.version == "Electron":
+                self.xs = 4
+                self.ys = 2
+            else:
+                self.xs = 2
+                self.ys = 1
         
         elif isinstance(repton, Repton2):
             self.xs = 2
@@ -386,12 +390,13 @@ class LevelWidget(QWidget):
         if not (0 <= r < 32 and 0 <= c < 32):
             return
         
-        # Do not allow spirits to be used on Screen A or the finishing piece
-        # to be used on other screens.
-        if tile == 74 and self.level_number == 1:
-            return
-        elif tile == 9 and self.level_number != 1:
-            return
+        if isinstance(self.repton, Repton2):
+            # Do not allow spirits to be used on Screen A or the finishing piece
+            # to be used on other screens.
+            if tile == 74 and self.level_number == 1:
+                return
+            elif tile == 9 and self.level_number != 1:
+                return
         
         previous = self.levels[self.level_number - 1][r][c]
         
@@ -401,83 +406,85 @@ class LevelWidget(QWidget):
         if old_highlight:
             self.updateCell(old_highlight[0], old_highlight[1])
         
-        if previous == 2:
+        if isinstance(self.repton, Repton2):
         
-            # Find out what the previous tile refer to.
-            actual_previous = self.getTransporterOrPuzzleTile(r, c)
+            if previous == 2:
             
-            # If there is no change, just return.
-            if actual_previous == tile:
-                return
-            
-            if actual_previous == 11:
-            
-                # Remove the transporter entry at this location.
-                dest_screen, (x, y) = self.transporters[self.level_number - 1][(c, r)]
-                del self.transporters[self.level_number - 1][(c, r)]
-                self.destinations[dest_screen][(x, y)].remove((self.level_number - 1, (c, r)))
+                # Find out what the previous tile refer to.
+                actual_previous = self.getTransporterOrPuzzleTile(r, c)
                 
-                # Remove the set for this entry if it is empty.
-                if not self.destinations[dest_screen][(x, y)]:
-                    del self.destinations[dest_screen][(x, y)]
+                # If there is no change, just return.
+                if actual_previous == tile:
+                    return
+                
+                if actual_previous == 11:
+                
+                    # Remove the transporter entry at this location.
+                    dest_screen, (x, y) = self.transporters[self.level_number - 1][(c, r)]
+                    del self.transporters[self.level_number - 1][(c, r)]
+                    self.destinations[dest_screen][(x, y)].remove((self.level_number - 1, (c, r)))
+                    
+                    # Remove the set for this entry if it is empty.
+                    if not self.destinations[dest_screen][(x, y)]:
+                        del self.destinations[dest_screen][(x, y)]
+                
+                elif 32 <= actual_previous < 74:
+                
+                    # The puzzle piece at this location is removed.
+                    number, destination = self.puzzle[self.level_number - 1][(c, r)]
+                    del self.puzzle[self.level_number - 1][(c, r)]
+                    del self.piece_numbers[number]
+                    
+                    self.puzzlePieceMoved.emit(number)
             
-            elif 32 <= actual_previous < 74:
+            if tile == 11:
             
-                # The puzzle piece at this location is removed.
-                number, destination = self.puzzle[self.level_number - 1][(c, r)]
-                del self.puzzle[self.level_number - 1][(c, r)]
-                del self.piece_numbers[number]
+                # Create a new transporter entry. The new transporter's
+                # destination is its own location.
+                self.transporters[self.level_number - 1][(c, r)] = (self.level_number - 1, (c, r))
+                s = self.destinations[self.level_number - 1].setdefault((c, r), set())
+                s.add((self.level_number - 1, (c, r)))
+                
+                # Insert tile 2 instead.
+                tile = 2
+            
+            elif tile < 3:
+            
+                # Write a blank space, even though tile 2 is technically a
+                # transporter tile when stored in map data and tile 1 is a
+                # transporter destination.
+                tile = 0
+            
+            elif tile == 74:
+            
+                # Spirit (only available on Screen A)
+                tile = 9
+            
+            elif 32 <= tile <= 73:
+            
+                # Puzzle pieces are handled like transporters, except that each one
+                # is unique.
+                number = tile - 32
+                try:
+                    old_screen, (old_x, old_y) = self.piece_numbers[number]
+                    if old_screen == self.level_number - 1:
+                        self.writeTile(old_x, old_y, 0)
+                    
+                    # Remove the entry from the puzzle dictionary. The piece's
+                    # entry in the number dictionary will be redefined. Place a
+                    # blank tile where the piece used to be.
+                    del self.puzzle[old_screen][(old_x, old_y)]
+                    self.levels[old_screen][old_y][old_x] = 0
+                except KeyError:
+                    pass
+                
+                self.puzzle[self.level_number - 1][(c, r)] = (number, 0)
+                self.piece_numbers[number] = (self.level_number - 1, (c, r))
                 
                 self.puzzlePieceMoved.emit(number)
-        
-        if tile == 11:
-        
-            # Create a new transporter entry. The new transporter's
-            # destination is its own location.
-            self.transporters[self.level_number - 1][(c, r)] = (self.level_number - 1, (c, r))
-            s = self.destinations[self.level_number - 1].setdefault((c, r), set())
-            s.add((self.level_number - 1, (c, r)))
-            
-            # Insert tile 2 instead.
-            tile = 2
-        
-        elif tile < 3:
-        
-            # Write a blank space, even though tile 2 is technically a
-            # transporter tile when stored in map data and tile 1 is a
-            # transporter destination.
-            tile = 0
-        
-        elif tile == 74:
-        
-            # Spirit (only available on Screen A)
-            tile = 9
-        
-        elif 32 <= tile <= 73:
-        
-            # Puzzle pieces are handled like transporters, except that each one
-            # is unique.
-            number = tile - 32
-            try:
-                old_screen, (old_x, old_y) = self.piece_numbers[number]
-                if old_screen == self.level_number - 1:
-                    self.writeTile(old_x, old_y, 0)
                 
-                # Remove the entry from the puzzle dictionary. The piece's
-                # entry in the number dictionary will be redefined. Place a
-                # blank tile where the piece used to be.
-                del self.puzzle[old_screen][(old_x, old_y)]
-                self.levels[old_screen][old_y][old_x] = 0
-            except KeyError:
-                pass
-            
-            self.puzzle[self.level_number - 1][(c, r)] = (number, 0)
-            self.piece_numbers[number] = (self.level_number - 1, (c, r))
-            
-            self.puzzlePieceMoved.emit(number)
-            
-            # Insert tile 2 instead.
-            tile = 2
+                # Insert tile 2 instead.
+                tile = 2
         
         self.levels[self.level_number - 1][r][c] = tile
         self.updateCell(c, r)
@@ -651,8 +658,13 @@ class EditorWindow(QMainWindow):
     
     def saveAs(self):
     
+        if self.repton.version == "Electron":
+            file_type = self.tr("UEF files (*.uef)")
+        else:
+            file_type = self.tr("SSD files (*.ssd)")
+        
         path = QFileDialog.getSaveFileName(self, self.tr("Save As"),
-                                           self.path, self.tr("UEF files (*.uef)"))
+                                           self.path, file_type)
         if not path.isEmpty():
         
             if self.saveLevels(unicode(path)):
@@ -679,21 +691,10 @@ class EditorWindow(QMainWindow):
         else:
             return
         
-        # Write the new UEF file.
-        u = UEFfile.UEFfile(creator = 'Repton Editor ' + __version__)
-        u.minor = 6
-        u.target_machine = "Electron"
-        
-        files = map(lambda x: (x["name"], x["load"], x["exec"], x["data"]),
-                    self.repton.uef.contents)
-        
-        u.import_files(0, files, gap = True)
-        
-        try:
-            u.write(path, write_emulator_info = False)
-            return True
-        except UEFfile.UEFfile_error:
-            return False
+        if self.repton.version == "Electron":
+            return self.repton.saveUEF(path, __version__)
+        else:
+            return self.repton.saveSSD(path)
     
     def importAs(self):
     
@@ -925,19 +926,21 @@ if __name__ == "__main__":
     
     if len(app.arguments()) < 2:
     
-        sys.stderr.write("Usage: %s <UEF file>\n" % app.arguments()[0])
+        sys.stderr.write("Usage: %s <UEF or SSD file>\n" % app.arguments()[0])
         app.quit()
         sys.exit(1)
     
+    file_name = unicode(app.arguments()[1])
+    
     try:
-        repton = Repton(app.arguments()[1])
+        repton = Repton(file_name)
         try_repton2 = False
     except:
         try_repton2 = True
     
     if try_repton2:
         try:
-            repton = Repton2(app.arguments()[1])
+            repton = Repton2(file_name)
         except:
             raise
     

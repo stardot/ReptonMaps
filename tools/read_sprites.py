@@ -48,11 +48,16 @@ if __name__ == "__main__":
     
     sprites = r.read_sprites()
     
+    if r.version == "Electron":
+        size = (8, 16)
+    else:
+        size = (16, 32)
+    
     n = 0
     
     for sprite in sprites:
     
-        im = Image.fromstring("P", (8, 16), sprite)
+        im = Image.fromstring("P", size, sprite)
         im.putpalette((0,255,0, 255,255,0, 255,0,0, 0,0,0))
         im.save(os.path.join(output_dir, "%02i.png" % n))
         
