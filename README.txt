@@ -1,23 +1,28 @@
 The ReptonMaps project is a set of tools and modules to read, edit and write
-maps for the Acorn Electron version of Superior Software's Repton.
+maps for the Acorn Electron cassette versions of Superior Software's Repton
+and Repton 2, and the BBC Micro DFS disk version of Repton.
 
-The main tool is a GUI editor for editing levels in an existing Repton
-executable, stored in a Universal Emulator Format (UEF) file. This depends on
-the cross-platform PyQt4 GUI framework. This tool is typically run from the
-command line from within the ReptonMaps directory itself, like this:
+The main tool is a GUI editor for editing levels in an existing Repton or
+Repton 2 executable, stored in a Universal Emulator Format (UEF) or Single
+Sided Disk (SSD) file. This depends on the cross-platform PyQt4 GUI
+framework. This tool is typically run from the command line from within the
+ReptonMaps directory itself, like this:
 
-  PYTHONPATH=. ./tools/editor.py Repton.uef
+  ./editor.py Repton.uef
 
-You will also need to provide a suitable Repton.uef file containing the files
-for the Acorn Electron version of Repton. This is not provided in this package.
-It is recommended that you save modified levels to a new UEF file and keep the
-original as a backup.
+You will also need to provide a suitable Repton.uef or Repton2.uef file
+containing the files for the Acorn Electron version of Repton or Repton 2,
+or a Repton.ssd file containing the files for the BBC Micro version of
+Repton. These are not provided in this package.
+
+It is recommended that you save modified levels to a new UEF or SSD file and
+keep the original as a backup.
 
 
 Copyright and License Information
 ---------------------------------
 
-Copyright (C) 2013 David Boddie <david@boddie.org.uk>
+Copyright (C) 2015 David Boddie <david@boddie.org.uk>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
