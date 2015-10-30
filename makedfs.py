@@ -73,8 +73,13 @@ class Catalogue(Utilities):
             
             extra = self._read_unsigned_byte(self._read(0x100 + p + 6))
             load = load | ((extra & 0x0c) << 14)
-            exec_ = exec_ | ((extra & 0x30) << 12)
-            length = length | ((extra & 0xc0) << 10)
+            length = length | ((extra & 0x30) << 12)
+            exec_ = exec_ | ((extra & 0xc0) << 10)
+            
+            if load & 0x30000 == 0x30000:
+                load = load | 0xfc0000
+            if exec_ & 0x30000 == 0x30000:
+                exec_ = exec_ | 0xfc0000
             
             file_start_sector = self._read_unsigned_byte(self._read(0x100 + p + 7))
             file_start_sector = file_start_sector | ((extra & 0x03) << 8)
@@ -100,7 +105,7 @@ class Catalogue(Utilities):
         # Write the number of files and the disk cycle.
         self.disk_cycle += 1
         self._write(0x104, self._write_unsigned_byte(self.disk_cycle))
-        self._write(0x105, len(files) * 8)
+        self._write(0x105, self._write_unsigned_byte(len(files) * 8))
         
         extra = (self.sectors >> 8) & 0x03
         extra = extra | (self.boot_option << 4)
