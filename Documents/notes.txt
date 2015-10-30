@@ -71,8 +71,8 @@ same as in the Electron version, from 0x4700 to 0x49ff.
 DFS disk: The D.REPTON2 file contains the level data from 0x3800 onwards.
 
 
-Repton2
-=======
+Repton2 (Electron Version)
+==========================
 
 Repton 2 levels appear to start at 0x2e00 and encode the data in rows of 20
 bytes (5 bits per cell again).
@@ -299,7 +299,7 @@ Memory layout
 =============
 
 Offsets             Description
-0x1da0-0x1e48       Puzzle piece locations
+0x1da0-0x1e47       Puzzle piece locations
 0x1e50-0x1fcf       Transporter definitions
 0x1fd0-0x1fff       ...
 0x2000-0x203f       Screen area definitions
@@ -314,3 +314,20 @@ Offsets             Description
 0x2a88-0x2a97       ?
 0x2a98-0x2dff       Game sprites
 0x2e00-0x4bff       Level definitions
+
+Repton 2 (BBC Micro DFS Version)
+================================
+
+Loading the D.REPB file into screen memory, it seems that the sprites finish at
+offset 0x3500. Seeing a span of values similar to those at 0x2e00 in the
+Electron version, and using EOR to compare what seem to be equivalent values,
+it appears that each byte in the file is encoded with EOR 0x66.
+
+We look for equivalent spans of values to those in the above table in order to
+identify the equivalent areas in the file.
+
+0x1b00-0x1b3f       Screen area definitions
+0x1b40-0x1cbf       Transporter definitions
+0x1cf8-0x1d9f       Puzzle piece locations
+
+0x3500-0x52ff       Level definitions

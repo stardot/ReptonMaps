@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 __all__ = ["sprites"]
 
 import UEFfile
+import makedfs
 
 from sprites import Reader
 
@@ -49,26 +50,72 @@ class Repton2:
     
     scores = {3: 3, 4: 4, 5: 5, 6: 6}
     
-    def __init__(self, uef_file):
+    def __init__(self, uef_or_ssd_file):
     
-        self.uef = UEFfile.UEFfile(uef_file)
-        self.file_number = 0
+        if uef_or_ssd_file.endswith("uef"):
         
-        for details in self.uef.contents:
-
-            if details["name"] == "REPTONB":
-                break
+            # Acorn Electron version
             
-            self.file_number += 1
+            self.uef = UEFfile.UEFfile(uef_or_ssd_file)
+            self.file_number = 0
+            
+            for details in self.uef.contents:
+    
+                if details["name"] == "REPTONB":
+                    break
+                
+                self.file_number += 1
+            else:
+                raise NotFound
+            
+            self.data = details["data"]
+        
+            if len(self.data) != 0x4c00:
+                raise IncorrectSize
+            
+            self.screen_area_start = 0x2000
+            self.levels_start = 0x2e00
+            self.transporters_address = 0x1e50
+            self.puzzle_address = 0x1da0
+            
+            self.version = "Electron"
+        
+        elif uef_or_ssd_file.endswith("ssd"):
+        
+            # BBC Micro DFS disk version
+            
+            self.ssd = makedfs.Disk()
+            self.ssd.open(open(uef_or_ssd_file))
+            self.file_number = 0
+            
+            cat = self.ssd.catalogue()
+            title, contents = cat.read()
+            
+            for details in contents:
+                if details.name == "D.REPB":
+                    break
+                
+                self.file_number += 1
+            else:
+                raise NotFound
+            
+            data = details.data
+            
+            if len(data) != 0x5400:
+                raise IncorrectSize
+            
+            # Unscramble the data.
+            self.data = "".join(map(lambda x: chr(ord(x) ^ 0x66), data))
+            
+            self.screen_area_start = 0x1b00
+            self.levels_start = 0x3500
+            self.transporters_address = 0x1b40
+            self.puzzle_address = 0x1cf8
+            
+            self.version = "BBC"
+        
         else:
             raise NotFound
-        
-        self.data = details["data"]
-        
-        if len(self.data) != 0x4c00:
-            raise IncorrectSize
-        
-        self.version = "Electron"
     
     def read_levels(self):
     
@@ -78,7 +125,7 @@ class Repton2:
         
             level = []
             
-            offsets_address = 0x2000 + (number * 4)
+            offsets_address = self.screen_area_start + (number * 4)
             
             for offset in range(4):
             
@@ -90,7 +137,7 @@ class Repton2:
                         level.append([offset & 0x1f]*32)
                 
                 else:
-                    address = 0x2e00 + (offset * 160)
+                    address = self.levels_start + (offset * 160)
                     
                     for row in range(8):
                     
@@ -162,7 +209,6 @@ class Repton2:
     
     def read_transporter_defs(self):
     
-        transporters_address = 0x1e50
         transporters = {}
         destinations = {}
         
@@ -171,8 +217,8 @@ class Repton2:
             transporters[screen] = {}
             destinations[screen] = {}
         
-        i = transporters_address
-        while i < 0x1fd0:
+        i = self.transporters_address
+        while i < self.transporters_address + 0x180:
         
             src_screen, src_x, src_y = map(ord, self.data[i:i+3])
             dest_screen, dest_x, dest_y = map(ord, self.data[i+3:i+6])
@@ -187,7 +233,6 @@ class Repton2:
     
     def read_puzzle_defs(self):
     
-        puzzle_address = 0x1da0
         pieces = {}
         piece_numbers = {}
         self.piece_destinations = {}
@@ -199,8 +244,8 @@ class Repton2:
         # Give the puzzle pieces numbers from 0 to 41.
         number = 0
         
-        i = puzzle_address
-        while i < 0x1e48:
+        i = self.puzzle_address
+        while i < self.puzzle_address + 0xa8:
         
             screen, x, y, destination = map(ord, self.data[i:i+4])
             pieces[screen][(x, y)] = (number, destination)
