@@ -59,6 +59,11 @@ class Repton:
             if len(self.data) != 0x4a00:
                 raise IncorrectSize
             
+            # Certain releases of Repton contain scrambled data. Unscramble it
+            # using a reversible scrambling routine.
+            if len(self.uef.contents) == 4:
+                self.data = self.scramble(self.data)
+            
             self.levels_start = 0x2c00
             self.sprites_start = 0x2500
             self.sprites_finish = 0x2c00
@@ -106,6 +111,35 @@ class Repton:
         
         else:
             raise NotFound
+    
+    def scramble(self, data):
+    
+        # Keep the first byte.
+        s = data[0]
+        
+        d = ""
+        v = 0xe0
+        o = [0x05, 0x04, 0x07, 0x06, 0x01, 0x00, 0x03, 0x02,
+             0x0d, 0x0c, 0x0f, 0x0e, 0x09, 0x08, 0x0b, 0x0a,
+             0x15, 0x14, 0x17, 0x16, 0x11, 0x10, 0x13, 0x12,
+             0x1d, 0x1c, 0x1f, 0x1e, 0x19, 0x18, 0x1b, 0x1a]
+        i = 0
+        while i < len(data):
+        
+            b = data[i:i+32]
+            j = 0
+            while j < 32:
+                d += chr(ord(b[j]) ^ (v + o[j]))
+                j += 1
+            
+            if v == 0:
+                v = 0xe0
+            else:
+                v -= 32
+            
+            i += 32
+        
+        return s + d[1:]
     
     def read_levels(self):
     
@@ -184,21 +218,23 @@ class Repton:
     
     def saveUEF(self, path, version):
     
-        # Write the new UEF file.
-        u = UEFfile.UEFfile(creator = 'Repton Editor ' + version)
-        u.minor = 6
-        u.target_machine = "Electron"
+        # Update the UEF file and save it to the specified location.
         
-        # Update the level data.
-        self.uef.contents[self.file_number]["data"] = self.data
+        # Scramble the data if necessary.
+        if len(self.uef.contents) == 4:
+            self.data = self.scramble(self.data)
         
-        files = map(lambda x: (x["name"], x["load"], x["exec"], x["data"]),
-                    self.uef.contents)
+        last_file = self.uef.contents[-1]
+        last_index = len(self.uef.contents) - 1
         
-        u.import_files(0, files, gap = True)
+        self.uef.remove_files([last_index])
+        
+        # Add the last file again with the updated level data.
+        info = (last_file["name"], last_file["load"], last_file["exec"], self.data)
+        self.uef.import_files(last_index, info)
         
         try:
-            u.write(path, write_emulator_info = False)
+            self.uef.write(path, write_emulator_info = False)
             return True
         except UEFfile.UEFfile_error:
             return False

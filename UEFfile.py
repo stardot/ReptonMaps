@@ -3,7 +3,7 @@
 """
 UEFfile.py - Handle UEF archives.
 
-Copyright (c) 2001-2010, David Boddie <david@boddie.org.uk>
+Copyright (c) 2001-2013, David Boddie <david@boddie.org.uk>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -373,7 +373,7 @@ class UEFfile:
 
         else:   # 0x102
 
-            if UEF_major == 0 and UEF_minor < 9:
+            if self.major == 0 and self.minor < 9:
 
                 # For UEF file versions earlier than 0.9, the number of
                 # excess bits to be ignored at the end of the stream is
@@ -458,7 +458,7 @@ class UEFfile:
         return (name, load, exec_addr, block[a+19:-2], block_number, last)
 
 
-    def write_block(self, block, name, load, exe, n):
+    def write_block(self, block, name, load, exe, n, last):
         """Write data to a string as a file data block in preparation to be written
         as chunk data to a UEF file."""
 
@@ -478,12 +478,10 @@ class UEFfile:
         out = out + self.number(2, len(block))
 
         # Block flag (last block)
-        if len(block) == 256:
-            out = out + self.number(1, 0)
-            last = 0
+        if last:
+            out = out + self.number(1, 128)
         else:
-            out = out + self.number(1, 128) # shouldn't be needed 
-            last = 1 
+            out = out + self.number(1, 0)
 
         # Next address
         out = out + self.number(2, 0)
@@ -499,7 +497,7 @@ class UEFfile:
         # Block CRC
         out = out + self.number(2, self.crc(block))
 
-        return out, last
+        return out
 
 
     def get_leafname(self, path):
@@ -746,8 +744,11 @@ class UEFfile:
         new_chunks = []
     
         # Write block details
-        while 1:
-            block, last = self.write_block(data[:256], name, load, exe, block_number)
+        while True:
+        
+            last = (len(data) <= 256)
+            block = self.write_block(data[:256], name, load, exe, block_number,
+                                     last)
 
             # Remove the leading 256 bytes as they have been encoded
             data = data[256:]
@@ -761,7 +762,7 @@ class UEFfile:
             # Write the block to the list of new chunks
             new_chunks.append((0x100, block))
 
-            if last == 1:
+            if last:
                 break
 
             # Increment the block number
