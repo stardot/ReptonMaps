@@ -61,7 +61,7 @@ class Repton2:
             
             for details in self.uef.contents:
     
-                if details["name"] == "REPTONB":
+                if details["name"].upper() == "REPTONB":
                     break
                 
                 self.file_number += 1
@@ -223,9 +223,12 @@ class Repton2:
             src_screen, src_x, src_y = map(ord, self.data[i:i+3])
             dest_screen, dest_x, dest_y = map(ord, self.data[i+3:i+6])
             
-            transporters[src_screen][(src_x, src_y)] = \
-                dest_screen, (dest_x, dest_y)
-            destinations[dest_screen].setdefault((dest_x, dest_y), set()).add((src_screen, (src_x, src_y)))
+            try:
+                transporters[src_screen][(src_x, src_y)] = \
+                    dest_screen, (dest_x, dest_y)
+                destinations[dest_screen].setdefault((dest_x, dest_y), set()).add((src_screen, (src_x, src_y)))
+            except KeyError:
+                pass
             
             i += 6
         
