@@ -73,9 +73,9 @@ class Reader:
         
         sprite = []
         for left, right in zip(lefts, rights):
-            sprite += left + right
+            sprite += [left, right]
 
-        sprite = "".join(sprite)
+        sprite = b"".join(sprite)
         return sprite
     
     def read_block(self, offset):
@@ -99,7 +99,7 @@ class Reader:
             columns.append(v)
         
         columns.reverse()
-        return "".join(map(chr, columns))
+        return bytes(columns)
 
 
 class BBCReader(Reader):
@@ -246,7 +246,7 @@ class BBCReader(Reader):
         
         sprite = []
         for pieces in zip(*columns):
-            sprite += "".join(pieces)
+            sprite += pieces
 
-        sprite = "".join(sprite)
+        sprite = b"".join(sprite)
         return sprite
