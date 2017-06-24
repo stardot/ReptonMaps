@@ -458,7 +458,8 @@ class UEFfile:
         return (name, load, exec_addr, block[a+19:-2], block_number, last)
 
 
-    def write_block(self, block, name, load, exe, n, last):
+    def write_block(self, block, name, load, exe, n, last = 0, flags = 0):
+    
         """Write data to a string as a file data block in preparation to be written
         as chunk data to a UEF file."""
 
@@ -478,16 +479,15 @@ class UEFfile:
         out = out + self.number(2, len(block))
 
         # Block flag (last block)
-        if last:
+        if flags:
+            out = out + self.number(1, flags)
+        elif last:
             out = out + self.number(1, 128)
         else:
             out = out + self.number(1, 0)
 
         # Next address
-        out = out + self.number(2, 0)
-
-        # Unknown
-        out = out + self.number(2, 0)
+        out = out + self.number(4, 0)
 
         # Header CRC
         out = out + self.number(2, self.crc(out[1:]))
