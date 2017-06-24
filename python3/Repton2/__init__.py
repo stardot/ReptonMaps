@@ -22,7 +22,7 @@ __all__ = ["sprites"]
 import UEFfile
 import makedfs
 
-from sprites import Reader
+from Repton2.sprites import Reader
 
 class NotFound(Exception):
     pass
@@ -61,7 +61,7 @@ class Repton2:
             
             for details in self.uef.contents:
     
-                if details["name"].upper() == "REPTONB":
+                if details["name"].upper() == b"REPTONB":
                     break
                 
                 self.file_number += 1
@@ -92,7 +92,7 @@ class Repton2:
             title, contents = cat.read()
             
             for details in contents:
-                if details.name == "D.REPB":
+                if details.name == b"D.REPB":
                     break
                 
                 self.file_number += 1
@@ -105,7 +105,7 @@ class Repton2:
                 raise IncorrectSize
             
             # Unscramble the data.
-            self.data = "".join(map(lambda x: chr(ord(x) ^ 0x66), data))
+            self.data = bytes(map(lambda x: x ^ 0x66, data))
             
             self.screen_area_start = 0x1b00
             self.levels_start = 0x3500
@@ -129,7 +129,7 @@ class Repton2:
             
             for offset in range(4):
             
-                offset = ord(self.data[offsets_address + offset])
+                offset = self.data[offsets_address + offset]
                 
                 if offset & 0x80:
                 
@@ -149,7 +149,7 @@ class Repton2:
             
                             if offset < 5:
                                 ch = self.data[address]
-                                current = current | (ord(ch) << offset)
+                                current = current | (ch << offset)
                                 address += 1
                                 offset += 8
             
@@ -187,7 +187,7 @@ class Repton2:
         for n in range(number):
         
             addr = sprite_defs_address + (n * 9)
-            offsets = map(lambda x: ord(x) * 0x08, self.data[addr:addr + 9])
+            offsets = map(lambda x: x * 0x08, self.data[addr:addr + 9])
             
             sprite = self._read_sprite(reader, offsets)
             sprites.append(sprite)
@@ -198,7 +198,7 @@ class Repton2:
     
     def _read_sprite(self, reader, offsets):
     
-        pieces = map(reader.read_sprite, offsets)
+        pieces = list(map(reader.read_sprite, offsets))
         
         sprite = []
         for i in range(0, 9, 3):
@@ -408,7 +408,7 @@ class Repton2:
                     areas.append(0x80 | first_tile)
         
         if a > 0x30:
-            print map(hex, areas)
+            print(map(hex, areas))
             raise TooManyAreas
         
         data += "".join(map(chr, areas))
@@ -449,7 +449,7 @@ class Repton2:
                         offset += 5
                     
                     if offset >= 8:
-                        data += chr(current & 0xff)
+                        data += bytes([current & 0xff])
                         current = current >> 8
                         offset -= 8
         
@@ -462,7 +462,7 @@ class Repton2:
     
         low = value % 10
         high = (value / 10) * 16
-        return chr(low | high)
+        return bytes([low | high])
     
     def saveUEF(self, path, version):
     

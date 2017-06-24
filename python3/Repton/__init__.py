@@ -22,7 +22,7 @@ __all__ = ["sprites"]
 import UEFfile
 import makedfs
 
-from sprites import Reader, BBCReader
+from Repton.sprites import Reader, BBCReader
 
 class NotFound(Exception):
     pass
@@ -47,7 +47,7 @@ class Repton:
             
             for details in self.uef.contents:
             
-                if details["name"] == "REPTON2":
+                if details["name"] == b"REPTON2":
                     break
                 
                 self.file_number += 1
@@ -87,7 +87,7 @@ class Repton:
             
             for details in files:
             
-                if details.name == "D.REPTON2":
+                if details.name == b"D.REPTON2":
                     break
                 
                 self.file_number += 1
@@ -115,9 +115,9 @@ class Repton:
     def scramble(self, data):
     
         # Keep the first byte.
-        s = data[0]
+        s = data[:1]
         
-        d = ""
+        d = []
         v = 0xe0
         o = [0x05, 0x04, 0x07, 0x06, 0x01, 0x00, 0x03, 0x02,
              0x0d, 0x0c, 0x0f, 0x0e, 0x09, 0x08, 0x0b, 0x0a,
@@ -129,7 +129,7 @@ class Repton:
             b = data[i:i+32]
             j = 0
             while j < 32:
-                d += chr(ord(b[j]) ^ (v + o[j]))
+                d.append(b[j] ^ (v + o[j]))
                 j += 1
             
             if v == 0:
@@ -139,7 +139,7 @@ class Repton:
             
             i += 32
         
-        return s + d[1:]
+        return s + bytes(d[1:])
     
     def read_levels(self):
     
@@ -160,7 +160,7 @@ class Repton:
     
                     if offset < 5:
                         ch = self.data[address]
-                        current = current | (ord(ch) << offset)
+                        current = current | (ch << offset)
                         address += 1
                         offset += 8
     
@@ -194,7 +194,7 @@ class Repton:
                         offset += 5
                     
                     if offset >= 8:
-                        data += chr(current & 0xff)
+                        data += bytes([current & 0xff])
                         current = current >> 8
                         offset -= 8
         
@@ -260,7 +260,7 @@ class Repton:
         disk.file.seek(0, 0)
         
         try:
-            open(path, "w").write(disk.file.read())
+            open(path, "wb").write(disk.file.read())
             return True
         except IOError:
             return False

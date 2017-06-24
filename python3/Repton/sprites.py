@@ -92,7 +92,6 @@ class Reader:
     def read_columns(self, byte):
     
         columns = []
-        byte = ord(byte)
         for i in range(4):
         
             v = (byte & 0x01) | ((byte & 0x10) >> 3)

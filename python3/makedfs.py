@@ -20,7 +20,7 @@ __date__ = "2014-04-22"
 __version__ = "0.1"
 __license__ = "GNU General Public License (version 3 or later)"
 
-import StringIO
+from io import StringIO
 from diskutils import Directory, DiskError, File, Utilities
 
 class Catalogue(Utilities):
@@ -64,7 +64,7 @@ class Catalogue(Utilities):
             
             name = name.strip()
             extra = self._read_unsigned_byte(self._read(p + 7))
-            prefix = chr(extra & 0x7f)
+            prefix = bytes([extra & 0x7f])
             locked = (extra & 0x80) != 0
             
             load = self._read_unsigned_half_word(self._read(0x100 + p, 2))
@@ -86,7 +86,7 @@ class Catalogue(Utilities):
             
             data = self._read(file_start_sector * self.sector_size, length)
             
-            files.append(File(prefix + "." + name, data, load, exec_, length, locked,
+            files.append(File(prefix + b"." + name, data, load, exec_, length, locked,
                               file_start_sector * self.sector_size))
             
             p += 8
@@ -96,7 +96,7 @@ class Catalogue(Utilities):
     def write(self, disk_title, files):
     
         if len(files) > 31:
-            raise DiskError, "Too many entries to write."
+            raise DiskError("Too many entries to write.")
         
         disk_name = self._pad(self._safe(disk_title), 12, " ")
         self._write(0, disk_title[:8])
@@ -168,7 +168,7 @@ class Catalogue(Utilities):
                 
                 return sector * self.sector_size
         
-        raise DiskError, "Failed to find space for file: %s" % file.name
+        raise DiskError("Failed to find space for file: %s" % file.name)
 
 
 class Disk:
