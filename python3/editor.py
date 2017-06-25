@@ -21,8 +21,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os, shelve, sys
 
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 
 from Repton import Repton
 from Repton2 import Repton2
@@ -157,7 +158,7 @@ class LevelWidget(QWidget):
     
         self.tile_images = []
         
-        palette = map(lambda x: qRgb(*x), self.repton.palette(self.level_number))
+        palette = list(map(lambda x: qRgb(*x), self.repton.palette(self.level_number)))
         
         for sprite in self.repton.read_sprites():
         
@@ -309,7 +310,7 @@ class LevelWidget(QWidget):
             goAction = menu.addAction(self.tr("Go to destination"))
             screen = 0
             x = 8 + (destination % 16)
-            y = 24 + (destination / 16)
+            y = 24 + (destination // 16)
             goAction.details = (screen, (x, y))
         
         else:
@@ -341,11 +342,11 @@ class LevelWidget(QWidget):
     
     def _row_from_y(self, y):
     
-        return y/(self.th * self.ys)
+        return y//(self.th * self.ys)
     
     def _column_from_x(self, x):
     
-        return x/(self.tw * self.xs)
+        return x//(self.tw * self.xs)
     
     def _y_from_row(self, r):
     
@@ -667,7 +668,7 @@ class EditorWindow(QMainWindow):
                                            self.path, file_type)
         if not path.isEmpty():
         
-            if self.saveLevels(unicode(path)):
+            if self.saveLevels(str(path)):
                 self.path = path
                 self.setWindowTitle(self.tr(path))
             else:
@@ -704,7 +705,7 @@ class EditorWindow(QMainWindow):
             return
         
         try:
-            d = shelve.open(unicode(path))
+            d = shelve.open(str(path))
             self.levelWidget.levels = d["levels"]
             
             if isinstance(self.repton, Repton2):
@@ -731,7 +732,7 @@ class EditorWindow(QMainWindow):
             return
         
         try:
-            d = shelve.open(unicode(path))
+            d = shelve.open(str(path))
             d["levels"] = self.levelWidget.levels
             
             if isinstance(self.repton, Repton2):
@@ -854,11 +855,11 @@ class EditorWindow(QMainWindow):
     
     def setCurrentTile(self):
     
-        self.levelWidget.currentTile = self.sender().data().toInt()[0]
+        self.levelWidget.currentTile = int(self.sender().data())
     
     def selectLevel(self, action):
     
-        number = action.data().toInt()[0]
+        number = int(action.data())
         self.levelWidget.highlight = None
         self.setLevel(number)
     
@@ -872,7 +873,7 @@ class EditorWindow(QMainWindow):
         # Also change the sprites in the toolbar.
         for action in self.tileGroup.actions():
         
-            symbol = action.data().toInt()[0]
+            symbol = int(action.data())
             if 32 <= symbol < 74:
                 icon = self.puzzleIcon(symbol)
             else:
@@ -894,7 +895,7 @@ class EditorWindow(QMainWindow):
     def updatePuzzleTiles(self, number):
     
         action = self.tileGroup.actions()[number + 33]
-        symbol = action.data().toInt()[0]
+        symbol = int(action.data())
         action.setIcon(self.puzzleIcon(symbol))
     
     def puzzleIcon(self, symbol):
@@ -930,7 +931,7 @@ if __name__ == "__main__":
         app.quit()
         sys.exit(1)
     
-    file_name = unicode(app.arguments()[1])
+    file_name = str(app.arguments()[1])
     
     try:
         repton = Repton(file_name)
