@@ -187,7 +187,7 @@ class Repton2:
         for n in range(number):
         
             addr = sprite_defs_address + (n * 9)
-            offsets = map(lambda x: x * 0x08, self.data[addr:addr + 9])
+            offsets = list(map(lambda x: x * 0x08, self.data[addr:addr + 9]))
             
             sprite = self._read_sprite(reader, offsets)
             sprites.append(sprite)
@@ -326,26 +326,26 @@ class Repton2:
             data += old_data[0x1a7:0x1e9]
         else:
             # Remove the code to wipe the skulls on Screen A.
-            data += "\xea"*6
+            data += b"\xea"*6
             data += old_data[0x1ad:0x1b7]
-            data += "\xea"*6
+            data += b"\xea"*6
             data += old_data[0x1bd:0x1c7]
-            data += "\xea"*6
+            data += b"\xea"*6
             data += old_data[0x1cd:0x1d6]
-            data += "\xea"*6
+            data += b"\xea"*6
             data += old_data[0x1dc:0x1e3]
-            data += "\xea"*6
+            data += b"\xea"*6
         
         data += old_data[0x1e9:0x1020]
         data += self.bcd(totals[2])          # monsters
         data += old_data[0x1021:0x1025]
         data += self.bcd(totals[0] % 100)    # diamonds (lowest digits)
         data += old_data[0x1026:0x102a]
-        data += self.bcd(totals[0] / 100)    # diamonds (highest digits)
+        data += self.bcd(totals[0] // 100)    # diamonds (highest digits)
         data += old_data[0x102b:0x102f]
         data += self.bcd(totals[1] % 100)    # earth (lowest digits)
         data += old_data[0x1030:0x1034]
-        data += self.bcd(totals[1] / 100)    # earth (highest digits)
+        data += self.bcd(totals[1] // 100)    # earth (highest digits)
         data += old_data[0x1035:0x1da0]
         
         pieces = {}
@@ -370,11 +370,11 @@ class Repton2:
         
             for (x, y), (dest_screen, (dest_x, dest_y)) in defs.items():
             
-                data += "".join(map(chr, (screen, x, y, dest_screen, dest_x, dest_y)))
+                data += bytes([screen, x, y, dest_screen, dest_x, dest_y])
         
         # If there are no transporters then the following will result in a
         # single transporter at the top-left of Screen A.
-        data += (0x2000 - len(data))*"\x00"
+        data += (0x2000 - len(data))*b"\x00"
         
         # Level area definitions
         
@@ -386,7 +386,11 @@ class Repton2:
         for level in levels:
         
             for row in range(0, 32, 8):
-                area = tuple(reduce(list.__add__, level[row:row+8]))
+                area = []
+                for row in level[row:row+8]:
+                    area += row
+                
+                area = tuple(area)
                 
                 # Reference existing areas if possible.
                 try:
@@ -408,10 +412,10 @@ class Repton2:
                     areas.append(0x80 | first_tile)
         
         if a > 0x30:
-            print(map(hex, areas))
+            print(list(map(hex, areas)))
             raise TooManyAreas
         
-        data += "".join(map(chr, areas))
+        data += bytes(areas)
         
         # Text character definitions
         data += old_data[0x2040:0x2340]
@@ -425,7 +429,7 @@ class Repton2:
         for a in range(len(areas)):
         
             if a % 4 == 0:
-                level = levels[a/4]
+                level = levels[a//4]
             
             area = areas[a]
             
@@ -454,7 +458,7 @@ class Repton2:
                         offset -= 8
         
         # Fill the rest of the level data with null bytes.
-        data += (0x4c00 - len(data)) * "\x00"
+        data += (0x4c00 - len(data)) * b"\x00"
         
         self.uef.contents[self.file_number]["data"] = data
     
@@ -471,8 +475,8 @@ class Repton2:
         u.minor = 6
         u.target_machine = "Electron"
         
-        files = map(lambda x: (x["name"], x["load"], x["exec"], x["data"]),
-                    self.uef.contents)
+        files = list(map(lambda x: (x["name"], x["load"], x["exec"], x["data"]),
+                         self.uef.contents))
         
         u.import_files(0, files, gap = True)
         

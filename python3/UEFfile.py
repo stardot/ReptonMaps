@@ -59,9 +59,9 @@ class UEFfile:
             self.files = []
 
             # Emulator associated with this UEF file
-            self.emulator = 'Unspecified'
+            self.emulator = b'Unspecified'
             # Originator/creator of the UEF file
-            self.creator = creator
+            self.creator = bytes(creator, "ascii")
             # Target machine
             self.target_machine = b''
             # Keyboard layout
@@ -638,11 +638,11 @@ class UEFfile:
 
         if pos == None:
 
-            self.emulator = 'Unspecified'
+            self.emulator = b'Unspecified'
 
         elif chunk[1] == b'':
 
-            self.emulator = 'Unknown'
+            self.emulator = b'Unknown'
         else:
             self.emulator = chunk[1]
 
@@ -818,7 +818,7 @@ class UEFfile:
         if len(info) == 0:
             return
 
-        if type(info[0]) == types.StringType:
+        if type(info[0]) == bytes:
 
             # Assume that the info sequence contains name, load, exe, data
             info = [info]
