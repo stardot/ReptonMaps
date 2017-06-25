@@ -661,13 +661,18 @@ class EditorWindow(QMainWindow):
     
         if self.repton.version == "Electron":
             file_type = self.tr("UEF files (*.uef)")
+            suffix = ".uef"
         else:
             file_type = self.tr("SSD files (*.ssd)")
+            suffix = ".ssd"
         
         path, filter_ = QFileDialog.getSaveFileName(self, self.tr("Save As"),
                                                     self.path, file_type)
         if path:
         
+            if not path.endswith(suffix):
+                path += suffix
+            
             if self.saveLevels(path):
                 self.path = path
                 self.setWindowTitle(self.tr(path))
@@ -730,6 +735,9 @@ class EditorWindow(QMainWindow):
                         self.path, self.tr("Level files (*.lev)"))
         if not path:
             return
+        
+        if not path.endswith(".lev"):
+            path += ".lev"
         
         try:
             d = shelve.open(path)
