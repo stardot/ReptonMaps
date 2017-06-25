@@ -666,9 +666,9 @@ class EditorWindow(QMainWindow):
         
         path = QFileDialog.getSaveFileName(self, self.tr("Save As"),
                                            self.path, file_type)
-        if not path.isEmpty():
+        if path:
         
-            if self.saveLevels(str(path)):
+            if self.saveLevels(path):
                 self.path = path
                 self.setWindowTitle(self.tr(path))
             else:
@@ -701,11 +701,11 @@ class EditorWindow(QMainWindow):
     
         path = QFileDialog.getOpenFileName(self, self.tr("Import File"),
                                            self.path, self.tr("Level files (*.lev)"))
-        if path.isEmpty():
+        if not path:
             return
         
         try:
-            d = shelve.open(str(path))
+            d = shelve.open(path)
             self.levelWidget.levels = d["levels"]
             
             if isinstance(self.repton, Repton2):
@@ -728,11 +728,11 @@ class EditorWindow(QMainWindow):
     
         path = QFileDialog.getSaveFileName(self, self.tr("Export As"),
                                            self.path, self.tr("Level files (*.lev)"))
-        if path.isEmpty():
+        if not path:
             return
         
         try:
-            d = shelve.open(str(path))
+            d = shelve.open(path)
             d["levels"] = self.levelWidget.levels
             
             if isinstance(self.repton, Repton2):
@@ -931,7 +931,7 @@ if __name__ == "__main__":
         app.quit()
         sys.exit(1)
     
-    file_name = str(app.arguments()[1])
+    file_name = app.arguments()[1]
     
     try:
         repton = Repton(file_name)
