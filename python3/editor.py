@@ -300,7 +300,7 @@ class LevelWidget(QWidget):
             
             for screen, (x, y) in self.destinations[self.level_number - 1][(c, r)]:
             
-                goAction = menu.addAction(self.tr("Go to transporter: %1 (%2,%3)").arg(chr(65+screen)).arg(x).arg(y))
+                goAction = menu.addAction(self.tr("Go to transporter: {0} ({1},{2})").format(65 + screen, x, y))
                 goAction.details = (screen, (x, y))
         
         elif (c, r) in self.puzzle[self.level_number - 1]:
@@ -530,7 +530,7 @@ class TransportersWidget(QListWidget):
     
         self.updateDelayTimer.stop()
         
-        transporters = self.transporters.items()
+        transporters = list(self.transporters.items())
         transporters.sort()
         
         self.clear()
@@ -540,7 +540,7 @@ class TransportersWidget(QListWidget):
             for (x, y), (dest_screen, (dest_x, dest_y)) in defs.items():
             
                 if (x, y) == (dest_x, dest_y):
-                    item = QListWidgetItem(self.tr("%1 (%2,%3)").arg(chr(65+screen)).arg(x).arg(y))
+                    item = QListWidgetItem("{0} ({1},{2})".format(65 + screen, x, y))
                     item.details = (dest_screen, (dest_x, dest_y))
                     self.addItem(item)
     
@@ -673,7 +673,7 @@ class EditorWindow(QMainWindow):
                 self.setWindowTitle(self.tr(path))
             else:
                 QMessageBox.warning(self, self.tr("Save Levels"),
-                    self.tr("Couldn't write the new executable to %1.\n").arg(path))
+                    self.tr("Couldn't write the new executable to {0}.\n").format(path))
     
     def saveLevels(self, path):
     
@@ -722,7 +722,7 @@ class EditorWindow(QMainWindow):
         
         except IOError:
             QMessageBox.warning(self, self.tr("Import Levels"),
-                self.tr("Couldn't read the level data from %1.\n").arg(path))
+                self.tr("Couldn't read the level data from {0}.\n").format(path))
     
     def exportAs(self):
     
@@ -747,7 +747,7 @@ class EditorWindow(QMainWindow):
         
         except IOError:
             QMessageBox.warning(self, self.tr("Export Levels"),
-                self.tr("Couldn't write the level data to %1.\n").arg(path))
+                self.tr("Couldn't write the level data to {0}.\n").format(path))
     
     def createDocks(self):
     
@@ -776,12 +776,12 @@ class EditorWindow(QMainWindow):
         self.tileGroup = QActionGroup(self)
         
         if isinstance(self.repton, Repton):
-            collection = [range(0, 32)]
+            collection = [list(range(0, 32))]
             toolbar_areas = [Qt.TopToolBarArea]
             titles = [self.tr("Tiles")]
         else:
             # 32 tiles + 42 puzzle pieces + 1 spirit = 75
-            collection = [range(0, 32) + [74], range(32, 74)]
+            collection = [list(range(0, 32)) + [74], list(range(32, 74))]
             toolbar_areas = [Qt.TopToolBarArea, Qt.BottomToolBarArea]
             titles = [self.tr("Tiles"), self.tr("Puzzle Pieces")]
         
@@ -901,7 +901,7 @@ class EditorWindow(QMainWindow):
     def puzzleIcon(self, symbol):
     
         image = self.levelWidget.tile_images[symbol].convertToFormat(QImage.Format_ARGB32_Premultiplied)
-        used = self.levelWidget.piece_numbers.has_key(symbol - 32)
+        used = (symbol - 32) in self.levelWidget.piece_numbers
         
         if used:
             painter = QPainter()

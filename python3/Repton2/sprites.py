@@ -48,4 +48,4 @@ class Reader:
             columns.append(v)
         
         columns.reverse()
-        return "".join(map(chr, columns))
+        return bytes(columns)

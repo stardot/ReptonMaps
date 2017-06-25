@@ -205,7 +205,7 @@ class Repton2:
             for left, middle, right in zip(*pieces[i:i+3]):
                 sprite.append(left + middle + right)
         
-        return "".join(sprite)
+        return b"".join(sprite)
     
     def read_transporter_defs(self):
     
@@ -220,8 +220,8 @@ class Repton2:
         i = self.transporters_address
         while i < self.transporters_address + 0x180:
         
-            src_screen, src_x, src_y = map(ord, self.data[i:i+3])
-            dest_screen, dest_x, dest_y = map(ord, self.data[i+3:i+6])
+            src_screen, src_x, src_y = self.data[i:i+3]
+            dest_screen, dest_x, dest_y = self.data[i+3:i+6]
             
             try:
                 transporters[src_screen][(src_x, src_y)] = \
@@ -250,7 +250,7 @@ class Repton2:
         i = self.puzzle_address
         while i < self.puzzle_address + 0xa8:
         
-            screen, x, y, destination = map(ord, self.data[i:i+4])
+            screen, x, y, destination = self.data[i:i+4]
             pieces[screen][(x, y)] = (number, destination)
             piece_numbers[number] = (screen, (x, y))
             self.piece_destinations[number] = destination
@@ -359,12 +359,12 @@ class Repton2:
         
         for i in range(42):
             try:
-                data += "".join(map(chr, pieces[i]))
+                data += bytes(pieces[i])
             except KeyError:
                 # Use a placeholder piece.
-                data += "\x00\x00\x00\x00"
+                data += b"\x00\x00\x00\x00"
         
-        data += "\x6b\x00\x00\x00\x00\x00\x00\x00"
+        data += b"\x6b\x00\x00\x00\x00\x00\x00\x00"
         
         for screen, defs in transporters.items():
         
