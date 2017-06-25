@@ -461,7 +461,7 @@ class Repton2:
     def bcd(self, value):
     
         low = value % 10
-        high = (value / 10) * 16
+        high = (value // 10) * 16
         return bytes([low | high])
     
     def saveUEF(self, path, version):
