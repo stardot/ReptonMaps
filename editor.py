@@ -511,7 +511,7 @@ class TransportersWidget(QListWidget):
         self.destinations = destinations
         
         metrics = QFontMetrics(self.font())
-        self.width = metrics.width("X (XX,XX)")
+        self.width = metrics.width("X (XX,XX) X (XX,XX)")
         self.height = 256
         
         self.updateDelayTimer = QTimer()
@@ -538,10 +538,11 @@ class TransportersWidget(QListWidget):
         
             for (x, y), (dest_screen, (dest_x, dest_y)) in defs.items():
             
-                if (x, y) == (dest_x, dest_y):
-                    item = QListWidgetItem(self.tr("%1 (%2,%3)").arg(chr(65+screen)).arg(x).arg(y))
-                    item.details = (dest_screen, (dest_x, dest_y))
-                    self.addItem(item)
+                item = QListWidgetItem(self.tr(u"%1 (%2,%3) %4 (%5,%6)").arg(
+                    chr(65+screen)).arg(x).arg(y).arg(chr(65+dest_screen)).arg(
+                    dest_x).arg(dest_y))
+                item.details = (screen, (x, y))
+                self.addItem(item)
     
     def setDestination(self, item):
     
