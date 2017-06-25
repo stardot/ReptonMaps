@@ -664,8 +664,8 @@ class EditorWindow(QMainWindow):
         else:
             file_type = self.tr("SSD files (*.ssd)")
         
-        path = QFileDialog.getSaveFileName(self, self.tr("Save As"),
-                                           self.path, file_type)
+        path, filter_ = QFileDialog.getSaveFileName(self, self.tr("Save As"),
+                                                    self.path, file_type)
         if path:
         
             if self.saveLevels(path):
@@ -699,8 +699,8 @@ class EditorWindow(QMainWindow):
     
     def importAs(self):
     
-        path = QFileDialog.getOpenFileName(self, self.tr("Import File"),
-                                           self.path, self.tr("Level files (*.lev)"))
+        path, filter_ = QFileDialog.getOpenFileName(self, self.tr("Import File"),
+                        self.path, self.tr("Level files (*.lev)"))
         if not path:
             return
         
@@ -726,8 +726,8 @@ class EditorWindow(QMainWindow):
     
     def exportAs(self):
     
-        path = QFileDialog.getSaveFileName(self, self.tr("Export As"),
-                                           self.path, self.tr("Level files (*.lev)"))
+        path, filter_ = QFileDialog.getSaveFileName(self, self.tr("Export As"),
+                        self.path, self.tr("Level files (*.lev)"))
         if not path:
             return
         
