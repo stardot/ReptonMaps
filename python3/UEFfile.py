@@ -880,7 +880,7 @@ class UEFfile:
         If positions is a list then return a list of info tuples.
         """
 
-        if type(file_positions) == types.IntType:
+        if type(file_positions) == int:
 
             file_positions = [file_positions]
 
@@ -931,7 +931,7 @@ class UEFfile:
         positions is either an integer or a list of integers.
         """
         
-        if type(file_positions) == types.IntType:
+        if type(file_positions) == int:
 
             file_positions = [file_positions]
 
@@ -945,8 +945,8 @@ class UEFfile:
     
             else:
                 # Add the chunk positions within each file to the list of positions
-                positions = positions + range(self.contents[file_position]['position'],
-                                  self.contents[file_position]['last position'] + 1)
+                positions = positions + list(range(self.contents[file_position]['position'],
+                                  self.contents[file_position]['last position'] + 1))
     
         # Create a new list of chunks without those in the positions list
         new_chunks = []
