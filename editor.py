@@ -806,6 +806,7 @@ class EditorWindow(QMainWindow):
             return
         
         path = unicode(path)
+        
         try:
             if path.endswith(".lev"):
                 d = shelve.open(path)
