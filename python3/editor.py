@@ -540,7 +540,7 @@ class TransportersWidget(QListWidget):
             for (x, y), (dest_screen, (dest_x, dest_y)) in defs.items():
             
                 item = QListWidgetItem("{0} ({1},{2}) {3} ({4},{5})".format(
-                    65 + screen, x, y, 65 + dest_screen, dest_x, dest_y))
+                    chr(65 + screen), x, y, chr(65 + dest_screen), dest_x, dest_y))
                 item.details = (screen, (x, y))
                 self.addItem(item)
     
