@@ -28,7 +28,108 @@ from Repton import Repton
 from Repton2 import Repton2
 import UEFfile
 
-__version__ = "0.1"
+__version__ = "0.2"
+
+serialized_types = {
+    "bool": bool,
+    "int": int,
+    "float": float,
+    "str": str
+    }
+
+def deserialize(f):
+
+    line = f.readline().strip()
+    
+    if not line:
+        return None
+    
+    if line == "{":
+    
+        d = {}
+        while True:
+            key = deserialize(f)
+            if key == None:
+                return d
+            
+            value = deserialize(f)
+            d[key] = value
+    
+    elif line == "[":
+    
+        l = []
+        while True:
+            item = deserialize(f)
+            if item == None:
+                return l
+            
+            l.append(item)
+    
+    elif line == "set{":
+    
+        s = set()
+        while True:
+            item = deserialize(f)
+            if item == None:
+                return s
+            
+            s.add(item)
+    
+    elif line == "(":
+    
+        l = []
+        while True:
+            item = deserialize(f)
+            if item == None:
+                return tuple(l)
+            
+            l.append(item)
+    
+    elif line in ("}", "]", ")"):
+        return None
+    
+    else:
+        at = line.find(":")
+        if at == -1:
+            return None
+        
+        t = line[:at]
+        return serialized_types.get(t, str)(line[at + 1:])
+
+def serialize(d, f):
+
+    if type(d) == dict:
+    
+        f.write("{\n")
+        for key, value in d.items():
+            serialize(key, f)
+            serialize(value, f)
+        f.write("}\n")
+    
+    elif type(d) == list:
+    
+        f.write("[\n")
+        for item in d:
+            serialize(item, f)
+        f.write("]\n")
+    
+    elif type(d) == set:
+    
+        f.write("set{\n")
+        for item in d:
+            serialize(item, f)
+        f.write("}\n")
+    
+    elif type(d) == tuple:
+    
+        f.write("(\n")
+        for item in d:
+            serialize(item, f)
+        f.write(")\n")
+    
+    else:
+        f.write(type(d).__name__ + ":" + str(d) + "\n")
+
 
 class DataDict(QObject):
 
@@ -171,10 +272,10 @@ class LevelWidget(QWidget):
         
         if isinstance(self.repton, Repton2):
         
-            transporters, destinations = repton.read_transporter_defs()
+            transporters, destinations = self.repton.read_transporter_defs()
             self.transporters = DataDict(transporters)
             self.destinations = DataDict(destinations)
-            self.puzzle, self.piece_numbers = repton.read_puzzle_defs()
+            self.puzzle, self.piece_numbers = self.repton.read_puzzle_defs()
     
     def setTileImages(self, tile_images):
     
@@ -700,12 +801,17 @@ class EditorWindow(QMainWindow):
     def importAs(self):
     
         path = QFileDialog.getOpenFileName(self, self.tr("Import File"),
-                                           self.path, self.tr("Level files (*.lev)"))
+                                           self.path, self.tr("Level files (*.rdat);;Old level files (*.lev)"))
         if path.isEmpty():
             return
         
+        path = unicode(path)
         try:
-            d = shelve.open(unicode(path))
+            if path.endswith(".lev"):
+                d = shelve.open(path)
+            else:
+                d = deserialize(open(path))
+            
             self.levelWidget.levels = d["levels"]
             
             if isinstance(self.repton, Repton2):
@@ -716,7 +822,8 @@ class EditorWindow(QMainWindow):
                 self.levelWidget.piece_numbers = d["piece numbers"]
                 self.totalsDock.widget().setTotals(d["totals"])
             
-            d.close()
+            if path.endswith(".lev"):
+                d.close()
             
             self.setLevel(1)
         
@@ -727,12 +834,14 @@ class EditorWindow(QMainWindow):
     def exportAs(self):
     
         path = QFileDialog.getSaveFileName(self, self.tr("Export As"),
-                                           self.path, self.tr("Level files (*.lev)"))
+                                           self.path, self.tr("Level files (*.rdat)"))
         if path.isEmpty():
             return
         
+        path = unicode(path)
+        
         try:
-            d = shelve.open(unicode(path))
+            d = {}
             d["levels"] = self.levelWidget.levels
             
             if isinstance(self.repton, Repton2):
@@ -743,7 +852,7 @@ class EditorWindow(QMainWindow):
                 d["piece numbers"] = self.levelWidget.piece_numbers
                 d["totals"] = self.totalsDock.widget().totals()
             
-            d.close()
+            serialize(d, open(path, "w"))
         
         except IOError:
             QMessageBox.warning(self, self.tr("Export Levels"),
